@@ -20,6 +20,7 @@ export type DbActionResult<T = unknown> = {
 };
 
 type TopicTimeSnapshot = {
+  authenticated: boolean;
   messagesByRoom: Record<string, ChatMessage[]>;
   notifications: NotificationItem[];
   profile: UserProfile | null;
@@ -51,6 +52,7 @@ type ProfileRow = {
   coins: number;
   display_name: string;
   interests: string[] | null;
+  last_gift_at: string | null;
   last_streak_at: string | null;
   premium_until: string | null;
   selected_theme_id: string;
@@ -133,6 +135,8 @@ function avatarInitials(displayName: string) {
 function mapRoom(row: RoomCardRow, joinedRoomIds: Set<string>): TopicRoom {
   const category = asTopicCategory(row.topic_name);
   const people = Number(row.member_count ?? 0);
+  const fallbackNames = ["Giulia", "Marta", "Nico", "Ari", "Sam", "Dani", "Vale", "Leo"];
+  const participants = [row.host_name, ...fallbackNames].slice(0, Math.max(1, people));
 
   return {
     category,
@@ -148,6 +152,7 @@ function mapRoom(row: RoomCardRow, joinedRoomIds: Set<string>): TopicRoom {
     joined: joinedRoomIds.has(row.id),
     limit: row.max_members,
     mood: row.mood,
+    participants,
     people,
     prompt: row.prompt,
     startsAt: formatRelativeTime(row.starts_at),
@@ -163,6 +168,7 @@ function mapProfile(row: ProfileRow): UserProfile {
     coins: row.coins,
     displayName: row.display_name,
     interests: row.interests ?? [],
+    lastGiftAt: row.last_gift_at,
     lastStreakAt: row.last_streak_at,
     premiumUntil: row.premium_until
       ? new Date(row.premium_until).toLocaleDateString("it-IT", {
@@ -199,6 +205,8 @@ export async function loadTopicTimeSnapshot(): Promise<DbActionResult<TopicTimeS
   const { data: authData } = await client.auth.getUser();
   const userId = authData.user?.id ?? null;
 
+  await client.rpc("ensure_random_rooms", { target_count: 6 });
+
   const [
     roomsResponse,
     themesResponse,
@@ -216,7 +224,7 @@ export async function loadTopicTimeSnapshot(): Promise<DbActionResult<TopicTimeS
     userId
       ? client
           .from("profiles")
-          .select("username,display_name,bio,interests,coins,premium_until,selected_theme_id,streak_count,last_streak_at")
+          .select("username,display_name,bio,interests,coins,premium_until,selected_theme_id,streak_count,last_streak_at,last_gift_at")
           .eq("id", userId)
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
@@ -310,6 +318,7 @@ export async function loadTopicTimeSnapshot(): Promise<DbActionResult<TopicTimeS
 
   return {
     data: {
+      authenticated: Boolean(userId),
       messagesByRoom,
       notifications: (notificationsResponse.data ?? []).map((row) => ({
         id: row.id as string,
@@ -514,6 +523,31 @@ export async function claimStreakInDatabase(): Promise<DbActionResult<{ reward: 
   };
 }
 
+export async function claimFreeGiftInDatabase(): Promise<DbActionResult<{ reward: number }>> {
+  const auth = await requireUser();
+
+  if ("ok" in auth) {
+    return auth as DbActionResult<{ reward: number }>;
+  }
+
+  const { data, error } = await auth.client.rpc("claim_free_gift");
+
+  if (error) {
+    return {
+      message: error.message,
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  return {
+    data: data as { reward: number },
+    message: "Regalo gratuito riscattato nel wallet.",
+    mode: "remote",
+    ok: true,
+  };
+}
+
 export async function purchaseThemeInDatabase(themeId: string): Promise<DbActionResult> {
   const auth = await requireUser();
 
@@ -535,6 +569,33 @@ export async function purchaseThemeInDatabase(themeId: string): Promise<DbAction
 
   return {
     message: "Tema acquistato nel database.",
+    mode: "remote",
+    ok: true,
+  };
+}
+
+export async function activatePremiumInDatabase(): Promise<
+  DbActionResult<{ coins: number; cost: number; premium_until: string }>
+> {
+  const auth = await requireUser();
+
+  if ("ok" in auth) {
+    return auth as DbActionResult<{ coins: number; cost: number; premium_until: string }>;
+  }
+
+  const { data, error } = await auth.client.rpc("activate_premium_plan");
+
+  if (error) {
+    return {
+      message: error.message,
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  return {
+    data: data as { coins: number; cost: number; premium_until: string },
+    message: "Premium attivato nel database.",
     mode: "remote",
     ok: true,
   };

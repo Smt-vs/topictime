@@ -7,7 +7,13 @@ import { getAuthState, sendMagicLink, signOut } from "@/lib/topic-time-db";
 
 type AuthStatus = "idle" | "sent" | "demo" | "error" | "online";
 
-export function AuthPanel() {
+type AuthPanelProps = {
+  onAuthChange?: (user: User | null) => void;
+  onDemoAccess?: () => void;
+  variant?: "panel" | "gate";
+};
+
+export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: AuthPanelProps) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<AuthStatus>("idle");
   const [message, setMessage] = useState("Accesso non ancora avviato.");
@@ -22,6 +28,7 @@ export function AuthPanel() {
       }
 
       setUser(authState.user);
+      onAuthChange?.(authState.user);
 
       if (!authState.configured) {
         setStatus("demo");
@@ -59,6 +66,7 @@ export function AuthPanel() {
     const result = await signOut();
 
     setUser(null);
+    onAuthChange?.(null);
     setStatus(result.ok ? "idle" : "error");
     setMessage(result.message);
   }
@@ -71,7 +79,7 @@ export function AuthPanel() {
         </span>
         <div>
           <p className="eyeline">Accesso</p>
-          <h2 id="auth-title">Entra con Supabase</h2>
+          <h2 id="auth-title">{variant === "gate" ? "Accedi per entrare" : "Entra con Supabase"}</h2>
         </div>
       </div>
 
@@ -100,6 +108,13 @@ export function AuthPanel() {
           </button>
         </form>
       )}
+
+      {onDemoAccess && !user ? (
+        <button className="secondary-action" type="button" onClick={onDemoAccess}>
+          <ShieldCheck size={18} />
+          Entra in demo
+        </button>
+      ) : null}
 
       <p className={`auth-status ${status}`}>{message}</p>
     </section>

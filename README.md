@@ -1,6 +1,6 @@
 # TopicTime Applicativo
 
-Applicativo Next.js per TopicTime: stanze tematiche a tempo, chat, wallet con monete, temi acquistabili, streak giornaliera, profilo per interessi, match post-room, notifiche, moderazione e login magic link tramite Supabase.
+Applicativo Next.js per TopicTime: login, stanze tematiche a tempo generate con topic casuali, chat, utenti in stanza, wallet con monete, regalo gratuito giornaliero, temi acquistabili, Premium, profilo per interessi, match post-room, notifiche e moderazione.
 
 ## Avvio locale
 
@@ -21,10 +21,12 @@ Se le variabili non sono presenti, l'app resta usabile in modalita demo con dati
 
 ## Funzionalita
 
-- Stanze filtrabili per topic, ricerca, capienza, costo, stato live/scheduled e vincoli Premium.
+- Login gate iniziale con magic link Supabase e fallback demo locale.
+- Stanze generate all'avvio con topic casuali, utenti gia presenti, capienza, costo e stato live/scheduled.
 - Ingresso stanza con RPC Supabase, addebito monete e fallback demo.
 - Chat per stanza con salvataggio messaggi per utenti autenticati.
-- Wallet con streak giornaliera, ricompense annuncio demo, pacchetti monete simulati e ledger movimenti.
+- Wallet con regalo gratuito giornaliero, streak, ricompense annuncio demo, pacchetti monete simulati e ledger movimenti.
+- Piano Premium acquistabile con monete; solo utenti Premium possono creare chatroom.
 - Temi acquistabili con monete e blocco Premium.
 - Profilo modificabile con bio, username, interessi e tema attivo.
 - Match post-conversazione, notifiche e pannello moderazione.
@@ -38,7 +40,7 @@ Esegui il contenuto di `supabase/schema.sql` nell'SQL editor di Supabase. Lo sch
 - tabelle social e prodotto: `friendships`, `wallet_transactions`, `notifications`, `moderation_reports`
 - view `room_cards` per la dashboard delle stanze
 - trigger su `auth.users` per creare automaticamente profilo e tema base
-- funzioni RPC `join_room`, `post_message`, `claim_daily_streak`, `purchase_theme`, `save_profile`, `create_room`
+- funzioni RPC `ensure_random_rooms`, `join_room`, `post_message`, `claim_free_gift`, `claim_daily_streak`, `activate_premium_plan`, `purchase_theme`, `save_profile`, `create_room`
 - policy RLS e grant per `anon` e `authenticated`
 - seed iniziale per topic, temi e stanze demo
 

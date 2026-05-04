@@ -11,6 +11,7 @@ import {
   Eye,
   Flag,
   Flame,
+  Gift,
   Hash,
   LockKeyhole,
   Megaphone,
@@ -30,6 +31,8 @@ import { AuthPanel } from "@/components/auth-panel";
 import {
   categories,
   companionMatches,
+  createRandomRooms,
+  createStarterMessagesForRooms,
   emptyRoomDraft,
   initialProfile,
   initialTransactions,
@@ -52,7 +55,9 @@ import {
   type WalletTransaction,
 } from "@/data/topic-time";
 import {
+  activatePremiumInDatabase,
   claimStreakInDatabase,
+  claimFreeGiftInDatabase,
   createRoomInDatabase,
   joinRoomInDatabase,
   loadTopicTimeSnapshot,
@@ -66,6 +71,8 @@ const coinPacks = [
   { amount: 80, label: "Room pass", price: "4,99" },
   { amount: 180, label: "Creator", price: "9,99" },
 ];
+
+type AccessState = "loading" | "guest" | "demo" | "authenticated";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -94,6 +101,7 @@ function makeMessage(text: string): ChatMessage {
 }
 
 export function TopicTimeApp() {
+  const [accessState, setAccessState] = useState<AccessState>("loading");
   const [activeCategory, setActiveCategory] = useState<TopicCategory>("Tutti");
   const [roomsState, setRoomsState] = useState<TopicRoom[]>(rooms);
   const [selectedRoomId, setSelectedRoomId] = useState(rooms[0].id);
@@ -120,6 +128,18 @@ export function TopicTimeApp() {
       }, {}),
   );
 
+  function seedRandomLobby(announce = false) {
+    const randomRooms = createRandomRooms();
+
+    setRoomsState(randomRooms);
+    setSelectedRoomId(randomRooms[0]?.id ?? selectedRoomId);
+    setMessagesByRoom(createStarterMessagesForRooms(randomRooms));
+
+    if (announce) {
+      setSync({ message: "Nuove chatroom con topic casuali generate per la lobby." });
+    }
+  }
+
   useEffect(() => {
     let mounted = true;
 
@@ -132,10 +152,13 @@ export function TopicTimeApp() {
       setSync(snapshot);
 
       if (!snapshot.ok || !snapshot.data) {
+        setAccessState("guest");
+        seedRandomLobby();
         return;
       }
 
       const snapshotData = snapshot.data;
+      setAccessState(snapshotData.authenticated ? "authenticated" : "guest");
 
       if (snapshotData.rooms.length > 0) {
         setRoomsState(snapshotData.rooms);
@@ -144,6 +167,8 @@ export function TopicTimeApp() {
             ? current
             : snapshotData.rooms[0]?.id ?? current,
         );
+      } else {
+        seedRandomLobby();
       }
 
       if (snapshotData.profile) {
@@ -191,7 +216,9 @@ export function TopicTimeApp() {
     roomsState.find((room) => room.id === selectedRoomId) ?? filteredRooms[0] ?? roomsState[0];
   const selectedMessages = messagesByRoom[selectedRoom.id] ?? [];
   const unreadCount = noticeList.filter((notice) => notice.status === "new").length;
+  const isAppUnlocked = accessState === "authenticated" || accessState === "demo";
   const premiumActive = Boolean(profile.premiumUntil);
+  const giftClaimedToday = profile.lastGiftAt === todayKey();
   const profileProgress = Math.min(
     100,
     28 +
@@ -232,6 +259,11 @@ export function TopicTimeApp() {
   }
 
   async function joinSelectedRoom() {
+    if (!isAppUnlocked) {
+      setSync({ message: "Prima accedi: solo gli utenti loggati possono entrare nelle chat." });
+      return;
+    }
+
     if (selectedRoom.joined) {
       setSync({ message: "Sei gia dentro questa stanza." });
       return;
@@ -265,6 +297,9 @@ export function TopicTimeApp() {
           ? {
               ...room,
               joined: true,
+              participants: room.participants.includes(profile.displayName)
+                ? room.participants
+                : [...room.participants, profile.displayName].slice(0, room.limit),
               people: Math.min(room.limit, room.people + 1),
               status: room.status === "scheduled" ? "live" : room.status,
             }
@@ -298,6 +333,11 @@ export function TopicTimeApp() {
 
     const trimmedMessage = draftMessage.trim();
     if (!trimmedMessage) {
+      return;
+    }
+
+    if (!isAppUnlocked) {
+      setSync({ message: "Accedi prima di scrivere in una chatroom." });
       return;
     }
 
@@ -336,6 +376,12 @@ export function TopicTimeApp() {
       return;
     }
 
+    if (reward <= 0) {
+      setProfile((current) => ({ ...current, lastGiftAt: todayKey() }));
+      setSync({ message: "Regalo gratuito gia riscattato oggi.", mode: result.mode });
+      return;
+    }
+
     setProfile((current) => ({
       ...current,
       coins: current.coins + reward,
@@ -343,6 +389,29 @@ export function TopicTimeApp() {
       streak,
     }));
     addTransaction(reward, `Bonus streak ${streak} giorni`);
+    setSync(result);
+  }
+
+  async function claimFreeGift() {
+    if (giftClaimedToday) {
+      setSync({ message: "Regalo gratuito gia riscattato oggi." });
+      return;
+    }
+
+    const result = await claimFreeGiftInDatabase();
+    const reward = result.data?.reward ?? 25;
+
+    if (!result.ok) {
+      setSync(result);
+      return;
+    }
+
+    setProfile((current) => ({
+      ...current,
+      coins: current.coins + reward,
+      lastGiftAt: todayKey(),
+    }));
+    addTransaction(reward, "Regalo gratuito giornaliero");
     setSync(result);
   }
 
@@ -400,19 +469,35 @@ export function TopicTimeApp() {
     setSync(result);
   }
 
-  function activatePremium() {
+  async function activatePremium() {
     if (profile.coins < 99) {
       setSync({ message: "Servono 99 monete per simulare Premium." });
       return;
     }
 
+    const result = await activatePremiumInDatabase();
+
+    if (!result.ok) {
+      setSync(result);
+      return;
+    }
+
+    const premiumUntil = result.data?.premium_until
+      ? new Date(result.data.premium_until).toLocaleDateString("it-IT", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })
+      : "Demo attiva 30 giorni";
+    const cost = result.data?.cost ?? 99;
+
     setProfile((current) => ({
       ...current,
-      coins: current.coins - 99,
-      premiumUntil: "Demo attiva 30 giorni",
+      coins: result.data?.coins ?? current.coins - cost,
+      premiumUntil,
     }));
-    addTransaction(-99, "Abbonamento Premium demo");
-    setSync({ message: "Premium attivato: stanze e temi premium sbloccati." });
+    addTransaction(-cost, "Abbonamento Premium");
+    setSync(result);
   }
 
   async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
@@ -444,6 +529,11 @@ export function TopicTimeApp() {
 
   async function handleCreateRoom(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!premiumActive) {
+      setSync({ message: "Solo gli utenti Premium possono creare chatroom." });
+      return;
+    }
 
     if (!roomDraft.title.trim() || !roomDraft.prompt.trim()) {
       setSync({ message: "Titolo e domanda iniziale sono obbligatori." });
@@ -484,6 +574,7 @@ export function TopicTimeApp() {
       joined: true,
       limit: roomDraft.maxMembers,
       mood: roomDraft.mood,
+      participants: [profile.displayName],
       people: 1,
       prompt: roomDraft.prompt,
       startsAt: "Tra 10 min",
@@ -533,6 +624,48 @@ export function TopicTimeApp() {
     );
   }
 
+  if (!isAppUnlocked) {
+    return (
+      <main className="login-shell" data-theme={profile.selectedThemeId}>
+        <section className="login-card" aria-labelledby="login-title">
+          <div className="login-copy">
+            <Image src="/brand/logo-mark.png" alt="" width={68} height={68} priority />
+            <p className="eyeline">TopicTime flow</p>
+            <h1 id="login-title">Accedi, ricevi monete, scegli una chatroom casuale.</h1>
+            <p>
+              L'app parte da un login reale. Dopo l'accesso trovi stanze con topic casuali,
+              utenti gia presenti, wallet monete e creazione chatroom riservata ai Premium.
+            </p>
+          </div>
+
+          <div className="login-side">
+            <div className="flow-steps" aria-label="Flusso applicativo">
+              <span>1. Login</span>
+              <span>2. Regalo monete</span>
+              <span>3. Scelta chat</span>
+              <span>4. Premium crea stanze</span>
+            </div>
+
+            {accessState === "loading" ? (
+              <p className="auth-status">Sto preparando la sessione...</p>
+            ) : null}
+
+            <AuthPanel
+              variant="gate"
+              onDemoAccess={() => {
+                setAccessState("demo");
+                seedRandomLobby(true);
+              }}
+              onAuthChange={(user) => {
+                setAccessState(user ? "authenticated" : "guest");
+              }}
+            />
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="topic-app" data-theme={profile.selectedThemeId}>
       <aside className="sidebar" aria-label="Navigazione TopicTime">
@@ -562,6 +695,14 @@ export function TopicTimeApp() {
             Profilo
           </a>
         </nav>
+
+        <div className="sidebar-profile">
+          <span>{profile.avatarInitials}</span>
+          <div>
+            <strong>{profile.displayName}</strong>
+            <small>{accessState === "demo" ? "demo user" : "utente attivo"}</small>
+          </div>
+        </div>
 
         <div className="sidebar-stat-grid" aria-label="Statistiche rapide">
           <span>
@@ -624,9 +765,15 @@ export function TopicTimeApp() {
                   <p className="eyeline">In partenza</p>
                   <h2 id="rooms-title">Scegli una stanza</h2>
                 </div>
-                <div className="coin-chip" aria-label={`${profile.coins} monete disponibili`}>
-                  <Image src="/brand/coin-icon.png" alt="" width={22} height={18} />
-                  {profile.coins}
+                <div className="room-heading-actions">
+                  <button className="mini-action" type="button" onClick={() => seedRandomLobby(true)}>
+                    <Sparkles size={15} />
+                    Random
+                  </button>
+                  <div className="coin-chip" aria-label={`${profile.coins} monete disponibili`}>
+                    <Image src="/brand/coin-icon.png" alt="" width={22} height={18} />
+                    {profile.coins}
+                  </div>
                 </div>
               </div>
 
@@ -710,6 +857,13 @@ export function TopicTimeApp() {
                 <span>{selectedRoom.compatibility}% compatibile</span>
               </div>
 
+              <div className="participant-strip" aria-label="Utenti nella stanza">
+                <strong>Utenti</strong>
+                {selectedRoom.participants.map((participant) => (
+                  <span key={participant}>{participant}</span>
+                ))}
+              </div>
+
               <div className="chat-log">
                 {selectedMessages.map((message) => (
                   <article className={`chat-message ${message.tone ?? "member"}`} key={message.id}>
@@ -726,10 +880,11 @@ export function TopicTimeApp() {
                 <input
                   aria-label="Messaggio"
                   placeholder={selectedRoom.joined ? "Scrivi nella stanza" : "Entra per scrivere"}
+                  disabled={!selectedRoom.joined}
                   value={draftMessage}
                   onChange={(event) => setDraftMessage(event.target.value)}
                 />
-                <button className="icon-button solid" type="submit" aria-label="Invia messaggio">
+                <button className="icon-button solid" type="submit" aria-label="Invia messaggio" disabled={!selectedRoom.joined}>
                   <Send size={18} />
                 </button>
               </form>
@@ -764,19 +919,27 @@ export function TopicTimeApp() {
               </div>
             </section>
 
-            <section className="panel creator-panel" aria-labelledby="creator-title">
+            <section className={`panel creator-panel ${premiumActive ? "" : "is-locked"}`} aria-labelledby="creator-title">
               <div className="panel-heading">
                 <div>
-                  <p className="eyeline">Host lab</p>
+                  <p className="eyeline">{premiumActive ? "Host lab" : "Premium richiesto"}</p>
                   <h2 id="creator-title">Crea una chatroom</h2>
                 </div>
-                <Wand2 size={24} />
+                {premiumActive ? <Wand2 size={24} /> : <LockKeyhole size={24} />}
               </div>
+
+              {!premiumActive ? (
+                <p className="creator-lock">
+                  Solo gli utenti Premium possono aprire nuove chatroom. Gli utenti free possono
+                  entrare nelle stanze casuali generate dall'app.
+                </p>
+              ) : null}
 
               <form className="creator-form" onSubmit={handleCreateRoom}>
                 <label>
                   Topic
                   <select
+                    disabled={!premiumActive}
                     value={roomDraft.topic}
                     onChange={(event) =>
                       setRoomDraft((current) => ({
@@ -797,6 +960,7 @@ export function TopicTimeApp() {
                 <label>
                   Titolo
                   <input
+                    disabled={!premiumActive}
                     value={roomDraft.title}
                     onChange={(event) =>
                       setRoomDraft((current) => ({ ...current, title: event.target.value }))
@@ -807,6 +971,7 @@ export function TopicTimeApp() {
                 <label className="wide-field">
                   Domanda iniziale
                   <textarea
+                    disabled={!premiumActive}
                     value={roomDraft.prompt}
                     onChange={(event) =>
                       setRoomDraft((current) => ({ ...current, prompt: event.target.value }))
@@ -817,6 +982,7 @@ export function TopicTimeApp() {
                 <label>
                   Durata
                   <input
+                    disabled={!premiumActive}
                     min={10}
                     max={45}
                     type="number"
@@ -832,6 +998,7 @@ export function TopicTimeApp() {
                 <label>
                   Max persone
                   <input
+                    disabled={!premiumActive}
                     min={2}
                     max={12}
                     type="number"
@@ -847,6 +1014,7 @@ export function TopicTimeApp() {
                 <label>
                   Costo monete
                   <input
+                    disabled={!premiumActive}
                     min={0}
                     max={50}
                     type="number"
@@ -862,22 +1030,29 @@ export function TopicTimeApp() {
                 <label>
                   Mood
                   <input
+                    disabled={!premiumActive}
                     value={roomDraft.mood}
                     onChange={(event) =>
                       setRoomDraft((current) => ({ ...current, mood: event.target.value }))
                     }
                   />
                 </label>
-                <button className="primary-action wide-field" type="submit">
+                <button className="primary-action wide-field" type="submit" disabled={!premiumActive}>
                   <Plus size={18} />
-                  Crea stanza
+                  {premiumActive ? "Crea stanza" : "Premium richiesto"}
                 </button>
               </form>
             </section>
           </div>
 
           <aside className="secondary-column">
-            <AuthPanel />
+            <AuthPanel
+              onAuthChange={(user) => {
+                if (!user) {
+                  setAccessState("guest");
+                }
+              }}
+            />
 
             <section className="panel compact-panel" aria-labelledby="notifications-title">
               <div className="panel-title-row">
@@ -955,6 +1130,10 @@ export function TopicTimeApp() {
               </div>
 
               <div className="wallet-actions">
+                <button type="button" onClick={claimFreeGift} disabled={giftClaimedToday}>
+                  <Gift size={16} />
+                  {giftClaimedToday ? "Regalo preso" : "Regalo +25"}
+                </button>
                 <button type="button" onClick={watchAdReward}>
                   <Eye size={16} />
                   Annuncio +20

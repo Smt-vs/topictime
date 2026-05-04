@@ -35,6 +35,7 @@ export type TopicRoom = {
   joined: boolean;
   limit: number;
   mood: string;
+  participants: string[];
   people: number;
   prompt: string;
   startsAt: string;
@@ -56,6 +57,7 @@ export type UserProfile = {
   coins: number;
   displayName: string;
   interests: string[];
+  lastGiftAt: string | null;
   lastStreakAt: string | null;
   premiumUntil: string | null;
   selectedThemeId: ThemeId;
@@ -138,9 +140,10 @@ export const topicIcons: Record<Exclude<TopicCategory, "Tutti">, LucideIcon> = {
 export const initialProfile: UserProfile = {
   avatarInitials: "TM",
   bio: "Preferisco stanze lente, domande concrete e conversazioni che continuano anche dopo il timer.",
-  coins: 126,
+  coins: 48,
   displayName: "Teo Demo",
   interests: ["Cinema", "Libri", "Viaggi lenti", "Playlist"],
+  lastGiftAt: null,
   lastStreakAt: null,
   premiumUntil: null,
   selectedThemeId: "zen",
@@ -163,6 +166,7 @@ export const rooms: TopicRoom[] = [
     joined: false,
     limit: 6,
     mood: "calma",
+    participants: ["Laura", "Giulia", "Enrico", "Noemi"],
     people: 4,
     prompt: "Quale scena vi ha fatto fermare per guardare davvero la luce?",
     startsAt: "Ora",
@@ -183,6 +187,7 @@ export const rooms: TopicRoom[] = [
     joined: false,
     limit: 6,
     mood: "curiosa",
+    participants: ["Nico", "Irene", "Teo", "Alba", "Rami"],
     people: 5,
     prompt: "Meglio perdersi in una citta o pianificare ogni tappa?",
     startsAt: "Tra 6 min",
@@ -203,6 +208,7 @@ export const rooms: TopicRoom[] = [
     joined: false,
     limit: 6,
     mood: "intima",
+    participants: ["Marta", "Leo", "Sara"],
     people: 3,
     prompt: "Un libro che vi ha cambiato idea su qualcuno?",
     startsAt: "Tra 14 min",
@@ -223,6 +229,7 @@ export const rooms: TopicRoom[] = [
     joined: false,
     limit: 6,
     mood: "energia",
+    participants: ["Sam", "Chiara", "Luca", "Fede", "Gio", "Mina"],
     people: 6,
     prompt: "Quale abitudine piccola vi ha dato risultati grandi?",
     startsAt: "Tra 21 min",
@@ -243,6 +250,7 @@ export const rooms: TopicRoom[] = [
     joined: false,
     limit: 6,
     mood: "nostalgia",
+    participants: ["Ari", "Blu"],
     people: 2,
     prompt: "Quale canzone vi riporta in un posto preciso?",
     startsAt: "Tra 27 min",
@@ -263,6 +271,7 @@ export const rooms: TopicRoom[] = [
     joined: false,
     limit: 6,
     mood: "accogliente",
+    participants: ["Dani", "Milo", "Paola", "Rita"],
     people: 4,
     prompt: "Quale piatto racconta meglio da dove venite?",
     startsAt: "Tra 32 min",
@@ -283,6 +292,7 @@ export const rooms: TopicRoom[] = [
     joined: false,
     limit: 6,
     mood: "vivace",
+    participants: ["Vale", "Kira", "Zed", "Fra", "Nina"],
     people: 5,
     prompt: "Il gioco che vi ha fatto litigare e ridere nello stesso party?",
     startsAt: "Tra 41 min",
@@ -507,3 +517,109 @@ export const emptyRoomDraft: RoomDraft = {
   title: "",
   topic: "Cinema",
 };
+
+const hostNames = ["Marta", "Nico", "Ari", "Sam", "Dani", "Vale", "Lia", "Omar", "Viola", "Rami"];
+const participantNames = [
+  "Giulia",
+  "Leo",
+  "Sara",
+  "Milo",
+  "Noemi",
+  "Blu",
+  "Irene",
+  "Kira",
+  "Enrico",
+  "Alba",
+  "Fede",
+  "Rita",
+];
+
+const randomRoomPrompts: Record<Exclude<TopicCategory, "Tutti">, string[]> = {
+  Cinema: [
+    "Quale scena vi ha fatto cambiare idea su un personaggio?",
+    "Un film che avete capito solo anni dopo?",
+  ],
+  Cucina: [
+    "Quale piatto vi fa pensare subito a casa?",
+    "Meglio ricette precise o cucina a memoria?",
+  ],
+  Fitness: [
+    "Quale micro-abitudine vi sta davvero aiutando?",
+    "Allenarsi da soli o con qualcuno cambia tutto?",
+  ],
+  Gaming: [
+    "Quale gioco e diventato bello solo in compagnia?",
+    "Una lobby che ricordate piu della partita?",
+  ],
+  Libri: [
+    "Un libro che vi ha fatto scrivere a qualcuno?",
+    "Quale personaggio vi ha dato fastidio perche era troppo vero?",
+  ],
+  Musica: [
+    "Quale canzone vi teletrasporta in un luogo preciso?",
+    "Album intero o playlist chirurgica?",
+  ],
+  Viaggi: [
+    "Meglio perdersi o avere tutto segnato?",
+    "Quale posto piccolo vi e rimasto addosso?",
+  ],
+};
+
+function pickRandom<T>(items: T[]) {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+export function createRandomRooms(count = 6): TopicRoom[] {
+  const topicPool = categories.filter(
+    (category): category is Exclude<TopicCategory, "Tutti"> => category !== "Tutti",
+  );
+  const createdAt = Date.now();
+
+  return Array.from({ length: count }, (_, index) => {
+    const category = pickRandom(topicPool);
+    const prompt = pickRandom(randomRoomPrompts[category]);
+    const host = pickRandom(hostNames);
+    const people = 1 + Math.floor(Math.random() * 4);
+    const participants = [host, ...[...participantNames].sort(() => Math.random() - 0.5).slice(0, people - 1)];
+    const startsIn = index === 0 ? 0 : 4 + index * 6;
+    const duration = 18 + Math.floor(Math.random() * 12);
+
+    return {
+      category,
+      compatibility: 72 + Math.floor(Math.random() * 24),
+      cost: index % 3 === 0 ? 0 : 4 + Math.floor(Math.random() * 9),
+      createdBy: "randomizer",
+      description: `Chatroom generata all'avvio con topic casuale: ${category}. Entra, rispondi e scopri gli utenti dopo il primo messaggio.`,
+      endsAt: `Tra ${startsIn + duration} min`,
+      host,
+      icon: topicIcons[category],
+      id: `random-${category.toLowerCase()}-${createdAt}-${index}`,
+      isPremium: index === count - 1,
+      joined: false,
+      limit: 6,
+      mood: pickRandom(["calma", "curiosa", "leggera", "intensa", "nostalgia"]),
+      participants,
+      people,
+      prompt,
+      startsAt: startsIn === 0 ? "Ora" : `Tra ${startsIn} min`,
+      status: startsIn === 0 ? "live" : "scheduled",
+      title: `${category} casuale #${index + 1}`,
+    };
+  });
+}
+
+export function createStarterMessagesForRooms(topicRooms: TopicRoom[]) {
+  return topicRooms.reduce<Record<string, ChatMessage[]>>((accumulator, room) => {
+    accumulator[room.id] = [
+      {
+        author: room.host,
+        createdAt: "Ora",
+        id: `seed-${room.id}`,
+        text: `Topic casuale: ${room.prompt}`,
+        tone: "host",
+      },
+    ];
+
+    return accumulator;
+  }, {});
+}

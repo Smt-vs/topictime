@@ -17,15 +17,19 @@ create table if not exists public.profiles (
   avatar_url text,
   bio text not null default '',
   interests text[] not null default '{}',
-  coins integer not null default 126 check (coins >= 0),
+  coins integer not null default 48 check (coins >= 0),
   premium_until timestamptz,
   selected_theme_id text not null default 'zen' references public.themes(id),
   streak_count integer not null default 0 check (streak_count >= 0),
   last_streak_at date,
+  last_gift_at date,
   onboarding_completed boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles add column if not exists last_gift_at date;
+alter table public.profiles alter column coins set default 48;
 
 create table if not exists public.profile_themes (
   profile_id uuid not null references public.profiles(id) on delete cascade,
@@ -374,6 +378,47 @@ begin
 end;
 $$;
 
+create or replace function public.claim_free_gift()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_user_id uuid := (select auth.uid());
+  current_profile public.profiles%rowtype;
+  reward integer := 25;
+begin
+  if current_user_id is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  select * into current_profile
+  from public.profiles
+  where id = current_user_id
+  for update;
+
+  if current_profile.last_gift_at = current_date then
+    return jsonb_build_object('reward', 0, 'already_claimed', true);
+  end if;
+
+  update public.profiles
+  set coins = coins + reward,
+      last_gift_at = current_date
+  where id = current_user_id;
+
+  insert into public.wallet_transactions (profile_id, amount, reason, metadata)
+  values (
+    current_user_id,
+    reward,
+    'free_gift',
+    jsonb_build_object('gift_date', current_date)
+  );
+
+  return jsonb_build_object('reward', reward, 'already_claimed', false);
+end;
+$$;
+
 create or replace function public.purchase_theme(target_theme_id text)
 returns void
 language plpgsql
@@ -440,6 +485,57 @@ begin
 end;
 $$;
 
+create or replace function public.activate_premium_plan()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_user_id uuid := (select auth.uid());
+  current_profile public.profiles%rowtype;
+  plan_cost integer := 99;
+  new_premium_until timestamptz;
+begin
+  if current_user_id is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  select * into current_profile
+  from public.profiles
+  where id = current_user_id
+  for update;
+
+  if current_profile.coins < plan_cost then
+    raise exception 'not_enough_coins';
+  end if;
+
+  new_premium_until := greatest(coalesce(current_profile.premium_until, now()), now()) + interval '30 days';
+
+  update public.profiles
+  set coins = coins - plan_cost,
+      premium_until = new_premium_until
+  where id = current_user_id;
+
+  insert into public.wallet_transactions (profile_id, amount, reason, metadata)
+  values (
+    current_user_id,
+    -plan_cost,
+    'premium_plan',
+    jsonb_build_object('premium_until', new_premium_until)
+  );
+
+  return jsonb_build_object(
+    'coins',
+    current_profile.coins - plan_cost,
+    'cost',
+    plan_cost,
+    'premium_until',
+    new_premium_until
+  );
+end;
+$$;
+
 create or replace function public.save_profile(
   profile_username text,
   profile_display_name text,
@@ -487,12 +583,22 @@ set search_path = public
 as $$
 declare
   current_user_id uuid := (select auth.uid());
+  current_profile public.profiles%rowtype;
   target_topic_id uuid;
   generated_slug text;
   created_room_id uuid;
 begin
   if current_user_id is null then
     raise exception 'not_authenticated';
+  end if;
+
+  select * into current_profile
+  from public.profiles
+  where id = current_user_id
+  for update;
+
+  if coalesce(current_profile.premium_until, '-infinity'::timestamptz) < now() then
+    raise exception 'premium_required';
   end if;
 
   select id into target_topic_id
@@ -542,6 +648,96 @@ begin
 end;
 $$;
 
+create or replace function public.ensure_random_rooms(target_count integer default 6)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  open_count integer;
+  missing_count integer;
+  created_count integer := 0;
+  topic_row record;
+  generated_slug text;
+  random_prompt text;
+  random_mood text;
+  i integer;
+begin
+  target_count := least(greatest(target_count, 1), 12);
+
+  select count(*) into open_count
+  from public.rooms
+  where status in ('scheduled', 'live')
+    and ends_at > now();
+
+  missing_count := target_count - open_count;
+
+  if missing_count <= 0 then
+    return 0;
+  end if;
+
+  for i in 1..missing_count loop
+    select id, slug, name into topic_row
+    from public.topics
+    order by random()
+    limit 1;
+
+    exit when topic_row.id is null;
+
+    generated_slug := public.slugify(
+      topic_row.slug || '-random-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 8)
+    );
+
+    random_prompt := case topic_row.slug
+      when 'cinema' then 'Quale scena vi ha fatto cambiare idea su un personaggio?'
+      when 'viaggi' then 'Meglio perdersi o avere ogni tappa gia salvata?'
+      when 'libri' then 'Un libro che vi ha fatto scrivere a qualcuno?'
+      when 'fitness' then 'Quale micro-abitudine vi sta davvero aiutando?'
+      when 'musica' then 'Quale canzone vi riporta in un posto preciso?'
+      when 'cucina' then 'Quale piatto racconta meglio da dove venite?'
+      when 'gaming' then 'Una lobby che ricordate piu della partita?'
+      else 'Quale dettaglio vi farebbe restare in questa conversazione?'
+    end;
+
+    random_mood := (array['calma', 'curiosa', 'leggera', 'intensa', 'nostalgia'])[1 + floor(random() * 5)::int];
+
+    insert into public.rooms (
+      slug,
+      topic_id,
+      title,
+      prompt,
+      description,
+      mood,
+      starts_at,
+      ends_at,
+      max_members,
+      coin_cost,
+      is_premium,
+      status
+    )
+    values (
+      generated_slug,
+      topic_row.id,
+      topic_row.name || ' casuale',
+      random_prompt,
+      'Chatroom generata automaticamente con topic casuale all''apertura della lobby.',
+      random_mood,
+      now() + make_interval(mins => created_count * 5),
+      now() + make_interval(mins => 20 + created_count * 5),
+      6,
+      case when created_count % 3 = 0 then 0 else 5 + floor(random() * 8)::int end,
+      false,
+      case when created_count = 0 then 'live' else 'scheduled' end
+    );
+
+    created_count := created_count + 1;
+  end loop;
+
+  return created_count;
+end;
+$$;
+
 create or replace view public.room_cards
 with (security_invoker = true)
 as
@@ -577,9 +773,12 @@ grant insert on public.messages, public.friendships, public.moderation_reports t
 grant execute on function public.join_room(text) to authenticated;
 grant execute on function public.post_message(text, text) to authenticated;
 grant execute on function public.claim_daily_streak() to authenticated;
+grant execute on function public.claim_free_gift() to authenticated;
 grant execute on function public.purchase_theme(text) to authenticated;
+grant execute on function public.activate_premium_plan() to authenticated;
 grant execute on function public.save_profile(text, text, text, text[], text) to authenticated;
 grant execute on function public.create_room(text, text, text, text, timestamptz, integer, integer, integer) to authenticated;
+grant execute on function public.ensure_random_rooms(integer) to anon, authenticated;
 
 alter table public.themes enable row level security;
 alter table public.profiles enable row level security;
@@ -837,3 +1036,9 @@ set title = excluded.title,
     coin_cost = excluded.coin_cost,
     is_premium = excluded.is_premium,
     status = excluded.status;
+
+delete from public.rooms
+where host_id is null
+  and slug in ('analogica', 'viaggio-lento', 'letture-notte', 'coop');
+
+select public.ensure_random_rooms(6);
