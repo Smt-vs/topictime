@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, startTransition, useDeferredValue, useEffect, useState } from "react";
 import Image from "next/image";
 import {
   Bell,
@@ -8,39 +8,110 @@ import {
   Clock,
   Coins,
   Crown,
+  Eye,
+  Flag,
   Flame,
   Hash,
   LockKeyhole,
+  Megaphone,
   MessageCircle,
   Palette,
   Plus,
   Search,
   Send,
+  ShieldAlert,
   Sparkles,
   UserPlus,
   Users,
+  Wand2,
+  X,
 } from "lucide-react";
 import { AuthPanel } from "@/components/auth-panel";
 import {
   categories,
   companionMatches,
+  emptyRoomDraft,
+  initialProfile,
+  initialTransactions,
+  moderationReports,
+  notifications,
   rooms,
   starterMessages,
   themeOptions,
+  topicIcons,
   type ChatMessage,
+  type CompanionMatch,
+  type ModerationReport,
+  type NotificationItem,
+  type RoomDraft,
+  type ThemeId,
+  type ThemeOption,
   type TopicCategory,
+  type TopicRoom,
+  type UserProfile,
+  type WalletTransaction,
 } from "@/data/topic-time";
+import {
+  claimStreakInDatabase,
+  createRoomInDatabase,
+  joinRoomInDatabase,
+  loadTopicTimeSnapshot,
+  postMessageInDatabase,
+  purchaseThemeInDatabase,
+  saveProfileInDatabase,
+} from "@/lib/topic-time-db";
 
-type ThemeId = (typeof themeOptions)[number]["id"];
+const coinPacks = [
+  { amount: 30, label: "Starter", price: "1,99" },
+  { amount: 80, label: "Room pass", price: "4,99" },
+  { amount: 180, label: "Creator", price: "9,99" },
+];
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function makeSlug(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 42);
+}
+
+function makeMessage(text: string): ChatMessage {
+  return {
+    author: "Tu",
+    createdAt: new Date().toLocaleTimeString("it-IT", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    id: `m-${Date.now()}`,
+    text,
+    tone: "you",
+  };
+}
 
 export function TopicTimeApp() {
   const [activeCategory, setActiveCategory] = useState<TopicCategory>("Tutti");
+  const [roomsState, setRoomsState] = useState<TopicRoom[]>(rooms);
   const [selectedRoomId, setSelectedRoomId] = useState(rooms[0].id);
-  const [joinedRoomIds, setJoinedRoomIds] = useState<string[]>([]);
-  const [coinBalance, setCoinBalance] = useState(126);
-  const [streakChecked, setStreakChecked] = useState(false);
-  const [theme, setTheme] = useState<ThemeId>("zen");
+  const [profile, setProfile] = useState<UserProfile>(initialProfile);
+  const [themes, setThemes] = useState<ThemeOption[]>(themeOptions);
+  const [matches, setMatches] = useState<CompanionMatch[]>(companionMatches);
+  const [transactions, setTransactions] = useState<WalletTransaction[]>(initialTransactions);
+  const [noticeList, setNoticeList] = useState<NotificationItem[]>(notifications);
+  const [reports, setReports] = useState<ModerationReport[]>(moderationReports);
+  const [roomDraft, setRoomDraft] = useState<RoomDraft>(emptyRoomDraft);
+  const [newInterest, setNewInterest] = useState("");
   const [draftMessage, setDraftMessage] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [syncMessage, setSyncMessage] = useState("Demo pronta. Collega Supabase per persistenza reale.");
+  const [databaseOnline, setDatabaseOnline] = useState(false);
+  const [adViews, setAdViews] = useState(0);
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+
   const [messagesByRoom, setMessagesByRoom] = useState<Record<string, ChatMessage[]>>(
     () =>
       rooms.reduce<Record<string, ChatMessage[]>>((accumulator, room) => {
@@ -49,56 +120,161 @@ export function TopicTimeApp() {
       }, {}),
   );
 
-  const filteredRooms =
-    activeCategory === "Tutti"
-      ? rooms
-      : rooms.filter((room) => room.category === activeCategory);
+  useEffect(() => {
+    let mounted = true;
+
+    loadTopicTimeSnapshot().then((snapshot) => {
+      if (!mounted) {
+        return;
+      }
+
+      setDatabaseOnline(snapshot.mode === "remote");
+      setSync(snapshot);
+
+      if (!snapshot.ok || !snapshot.data) {
+        return;
+      }
+
+      const snapshotData = snapshot.data;
+
+      if (snapshotData.rooms.length > 0) {
+        setRoomsState(snapshotData.rooms);
+        setSelectedRoomId((current) =>
+          snapshotData.rooms.some((room) => room.id === current)
+            ? current
+            : snapshotData.rooms[0]?.id ?? current,
+        );
+      }
+
+      if (snapshotData.profile) {
+        setProfile(snapshotData.profile);
+      }
+
+      if (snapshotData.themes.length > 0) {
+        setThemes(snapshotData.themes);
+      }
+
+      if (snapshotData.transactions.length > 0) {
+        setTransactions(snapshotData.transactions);
+      }
+
+      if (snapshotData.notifications.length > 0) {
+        setNoticeList(snapshotData.notifications);
+      }
+
+      if (Object.keys(snapshotData.messagesByRoom).length > 0) {
+        setMessagesByRoom((current) => ({
+          ...current,
+          ...snapshotData.messagesByRoom,
+        }));
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const normalizedSearch = deferredSearchTerm.trim().toLowerCase();
+  const filteredRooms = roomsState.filter((room) => {
+    const matchesCategory = activeCategory === "Tutti" || room.category === activeCategory;
+    const matchesSearch =
+      !normalizedSearch ||
+      `${room.title} ${room.prompt} ${room.host} ${room.category}`
+        .toLowerCase()
+        .includes(normalizedSearch);
+
+    return matchesCategory && matchesSearch;
+  });
 
   const selectedRoom =
-    rooms.find((room) => room.id === selectedRoomId) ?? filteredRooms[0] ?? rooms[0];
-
+    roomsState.find((room) => room.id === selectedRoomId) ?? filteredRooms[0] ?? roomsState[0];
   const selectedMessages = messagesByRoom[selectedRoom.id] ?? [];
-  const joinedSelectedRoom = joinedRoomIds.includes(selectedRoom.id);
+  const unreadCount = noticeList.filter((notice) => notice.status === "new").length;
+  const premiumActive = Boolean(profile.premiumUntil);
+  const profileProgress = Math.min(
+    100,
+    28 +
+      (profile.displayName ? 18 : 0) +
+      (profile.bio ? 18 : 0) +
+      Math.min(profile.interests.length, 4) * 9,
+  );
+  const joinedCount = roomsState.filter((room) => room.joined).length;
+  const liveCount = roomsState.filter((room) => room.status === "live").length;
+
+  function setSync(result: { message: string; mode?: "demo" | "remote"; ok?: boolean }) {
+    const prefix = result.mode === "remote" ? "DB" : "Demo";
+    setSyncMessage(`${prefix}: ${result.message}`);
+  }
+
+  function addTransaction(amount: number, reason: string) {
+    setTransactions((current) => [
+      {
+        amount,
+        id: `tx-${Date.now()}`,
+        reason,
+        time: "Adesso",
+      },
+      ...current.slice(0, 7),
+    ]);
+  }
 
   function chooseCategory(category: TopicCategory) {
-    setActiveCategory(category);
-    const firstRoom =
-      category === "Tutti" ? rooms[0] : rooms.find((room) => room.category === category);
+    startTransition(() => {
+      setActiveCategory(category);
+      const firstRoom =
+        category === "Tutti" ? roomsState[0] : roomsState.find((room) => room.category === category);
 
-    if (firstRoom) {
-      setSelectedRoomId(firstRoom.id);
-    }
+      if (firstRoom) {
+        setSelectedRoomId(firstRoom.id);
+      }
+    });
   }
 
-  function joinSelectedRoom() {
-    if (joinedSelectedRoom) {
+  async function joinSelectedRoom() {
+    if (selectedRoom.joined) {
+      setSync({ message: "Sei gia dentro questa stanza." });
       return;
     }
 
-    if (selectedRoom.cost > coinBalance) {
-      setCoinBalance((current) => current + 20);
+    if (selectedRoom.people >= selectedRoom.limit) {
+      setSync({ message: "La stanza e piena: resta in coda o scegli un altro topic." });
       return;
     }
 
-    setCoinBalance((current) => current - selectedRoom.cost);
-    setJoinedRoomIds((current) => [...current, selectedRoom.id]);
-  }
-
-  function claimStreak() {
-    if (streakChecked) {
+    if (selectedRoom.isPremium && !premiumActive) {
+      setSync({ message: "Questa stanza richiede Premium. Attivalo dal wallet." });
       return;
     }
 
-    setStreakChecked(true);
-    setCoinBalance((current) => current + 12);
-  }
-
-  function handleSendMessage(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const trimmedMessage = draftMessage.trim();
-    if (!trimmedMessage) {
+    if (selectedRoom.cost > profile.coins) {
+      setSync({ message: "Monete insufficienti: guarda un annuncio o ricarica il wallet." });
       return;
+    }
+
+    const result = await joinRoomInDatabase(selectedRoom.id);
+
+    if (!result.ok) {
+      setSync(result);
+      return;
+    }
+
+    setRoomsState((current) =>
+      current.map((room) =>
+        room.id === selectedRoom.id
+          ? {
+              ...room,
+              joined: true,
+              people: Math.min(room.limit, room.people + 1),
+              status: room.status === "scheduled" ? "live" : room.status,
+            }
+          : room,
+      ),
+    );
+
+    if (selectedRoom.cost > 0) {
+      setProfile((current) => ({ ...current, coins: current.coins - selectedRoom.cost }));
+      addTransaction(-selectedRoom.cost, `Ingresso stanza ${selectedRoom.title}`);
     }
 
     setMessagesByRoom((current) => ({
@@ -106,21 +282,259 @@ export function TopicTimeApp() {
       [selectedRoom.id]: [
         ...(current[selectedRoom.id] ?? []),
         {
-          author: "Tu",
-          text: trimmedMessage,
-          tone: "you",
+          author: "TopicTime",
+          createdAt: "Ora",
+          id: `system-${Date.now()}`,
+          text: "Hai varcato la soglia: il profilo resta sullo sfondo, conta la risposta.",
+          tone: "system",
         },
       ],
     }));
-    setDraftMessage("");
+    setSync(result);
+  }
 
-    if (!joinedSelectedRoom) {
-      setJoinedRoomIds((current) => [...current, selectedRoom.id]);
+  async function handleSendMessage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const trimmedMessage = draftMessage.trim();
+    if (!trimmedMessage) {
+      return;
     }
+
+    if (!selectedRoom.joined) {
+      setSync({ message: "Entra nella stanza prima di scrivere." });
+      return;
+    }
+
+    const result = await postMessageInDatabase(selectedRoom.id, trimmedMessage);
+
+    if (!result.ok) {
+      setSync(result);
+      return;
+    }
+
+    setMessagesByRoom((current) => ({
+      ...current,
+      [selectedRoom.id]: [...(current[selectedRoom.id] ?? []), makeMessage(trimmedMessage)],
+    }));
+    setDraftMessage("");
+    setSync(result);
+  }
+
+  async function claimStreak() {
+    if (profile.lastStreakAt === todayKey()) {
+      setSync({ message: "Bonus streak gia riscattato oggi." });
+      return;
+    }
+
+    const result = await claimStreakInDatabase();
+    const reward = result.data?.reward ?? 12;
+    const streak = result.data?.streak ?? profile.streak + 1;
+
+    if (!result.ok) {
+      setSync(result);
+      return;
+    }
+
+    setProfile((current) => ({
+      ...current,
+      coins: current.coins + reward,
+      lastStreakAt: todayKey(),
+      streak,
+    }));
+    addTransaction(reward, `Bonus streak ${streak} giorni`);
+    setSync(result);
+  }
+
+  function watchAdReward() {
+    if (adViews >= 3) {
+      setSync({ message: "Hai raggiunto il limite demo di 3 annunci giornalieri." });
+      return;
+    }
+
+    setAdViews((current) => current + 1);
+    setProfile((current) => ({ ...current, coins: current.coins + 20 }));
+    addTransaction(20, "Ricompensa annuncio");
+    setSync({ message: "Ricompensa annuncio aggiunta al wallet." });
+  }
+
+  function buyCoinPack(amount: number, label: string) {
+    setProfile((current) => ({ ...current, coins: current.coins + amount }));
+    addTransaction(amount, `Pacchetto ${label}`);
+    setSync({ message: `Pacchetto ${label} simulato. Integra Stripe nella fase pagamenti.` });
+  }
+
+  async function selectOrBuyTheme(theme: ThemeOption) {
+    if (theme.owned) {
+      setProfile((current) => ({ ...current, selectedThemeId: theme.id }));
+      setSync({ message: `Tema ${theme.label} attivato.` });
+      return;
+    }
+
+    if (theme.premiumOnly && !premiumActive) {
+      setSync({ message: "Tema premium bloccato: attiva Premium prima dell'acquisto." });
+      return;
+    }
+
+    if (profile.coins < theme.price) {
+      setSync({ message: "Monete insufficienti per questo tema." });
+      return;
+    }
+
+    const result = await purchaseThemeInDatabase(theme.id);
+
+    if (!result.ok) {
+      setSync(result);
+      return;
+    }
+
+    setThemes((current) =>
+      current.map((item) => (item.id === theme.id ? { ...item, owned: true } : item)),
+    );
+    setProfile((current) => ({
+      ...current,
+      coins: current.coins - theme.price,
+      selectedThemeId: theme.id,
+    }));
+    addTransaction(-theme.price, `Tema ${theme.label}`);
+    setSync(result);
+  }
+
+  function activatePremium() {
+    if (profile.coins < 99) {
+      setSync({ message: "Servono 99 monete per simulare Premium." });
+      return;
+    }
+
+    setProfile((current) => ({
+      ...current,
+      coins: current.coins - 99,
+      premiumUntil: "Demo attiva 30 giorni",
+    }));
+    addTransaction(-99, "Abbonamento Premium demo");
+    setSync({ message: "Premium attivato: stanze e temi premium sbloccati." });
+  }
+
+  async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const result = await saveProfileInDatabase(profile);
+    setSync(result);
+  }
+
+  function addInterest() {
+    const value = newInterest.trim();
+
+    if (!value || profile.interests.includes(value)) {
+      return;
+    }
+
+    setProfile((current) => ({
+      ...current,
+      interests: [...current.interests, value].slice(0, 8),
+    }));
+    setNewInterest("");
+  }
+
+  function removeInterest(interest: string) {
+    setProfile((current) => ({
+      ...current,
+      interests: current.interests.filter((item) => item !== interest),
+    }));
+  }
+
+  async function handleCreateRoom(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!roomDraft.title.trim() || !roomDraft.prompt.trim()) {
+      setSync({ message: "Titolo e domanda iniziale sono obbligatori." });
+      return;
+    }
+
+    const startsAtIso = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    const result = await createRoomInDatabase({
+      coinCost: roomDraft.coinCost,
+      durationMinutes: roomDraft.durationMinutes,
+      maxMembers: roomDraft.maxMembers,
+      mood: roomDraft.mood,
+      prompt: roomDraft.prompt,
+      startsAtIso,
+      title: roomDraft.title,
+      topicSlug: roomDraft.topic.toLowerCase(),
+    });
+
+    if (!result.ok) {
+      setSync(result);
+      return;
+    }
+
+    const fallbackSlug = makeSlug(roomDraft.title) || `stanza-${Date.now()}`;
+    const id = result.data?.room_slug ?? fallbackSlug;
+    const Icon = topicIcons[roomDraft.topic];
+    const newRoom: TopicRoom = {
+      category: roomDraft.topic,
+      compatibility: 80,
+      cost: roomDraft.coinCost,
+      createdBy: profile.username,
+      description: "Stanza creata dal pannello host.",
+      endsAt: `Tra ${roomDraft.durationMinutes + 10} min`,
+      host: profile.displayName,
+      icon: Icon,
+      id,
+      isPremium: false,
+      joined: true,
+      limit: roomDraft.maxMembers,
+      mood: roomDraft.mood,
+      people: 1,
+      prompt: roomDraft.prompt,
+      startsAt: "Tra 10 min",
+      status: "scheduled",
+      title: roomDraft.title,
+    };
+
+    setRoomsState((current) => [newRoom, ...current]);
+    setMessagesByRoom((current) => ({
+      ...current,
+      [id]: [
+        {
+          author: "TopicTime",
+          createdAt: "Ora",
+          id: `system-${Date.now()}`,
+          text: "Stanza creata. La domanda iniziale e pronta per accogliere i partecipanti.",
+          tone: "system",
+        },
+      ],
+    }));
+    setSelectedRoomId(id);
+    setRoomDraft(emptyRoomDraft);
+    setSync(result);
+  }
+
+  function requestMatch(matchId: string) {
+    setMatches((current) =>
+      current.map((match) => (match.id === matchId ? { ...match, status: "requested" } : match)),
+    );
+    setSync({ message: "Richiesta contatto inviata. Nel database sara una friendship pending." });
+  }
+
+  function acceptMatch(matchId: string) {
+    setMatches((current) =>
+      current.map((match) => (match.id === matchId ? { ...match, status: "friend" } : match)),
+    );
+    setSync({ message: "Contatto aggiunto agli amici." });
+  }
+
+  function markNotificationsRead() {
+    setNoticeList((current) => current.map((notice) => ({ ...notice, status: "read" })));
+  }
+
+  function closeReport(reportId: string) {
+    setReports((current) =>
+      current.map((report) => (report.id === reportId ? { ...report, status: "closed" } : report)),
+    );
   }
 
   return (
-    <main className="topic-app" data-theme={theme}>
+    <main className="topic-app" data-theme={profile.selectedThemeId}>
       <aside className="sidebar" aria-label="Navigazione TopicTime">
         <a className="brand-lockup" href="#rooms" aria-label="TopicTime applicativo">
           <Image src="/brand/logo-mark.png" alt="" width={52} height={52} priority />
@@ -149,14 +563,25 @@ export function TopicTimeApp() {
           </a>
         </nav>
 
+        <div className="sidebar-stat-grid" aria-label="Statistiche rapide">
+          <span>
+            <strong>{liveCount}</strong>
+            live
+          </span>
+          <span>
+            <strong>{joinedCount}</strong>
+            join
+          </span>
+        </div>
+
         <div className="streak-box">
           <div>
             <Flame size={20} />
-            <span>{streakChecked ? "8 giorni" : "7 giorni"}</span>
+            <span>{profile.streak} giorni</span>
           </div>
-          <button type="button" onClick={claimStreak} disabled={streakChecked}>
-            {streakChecked ? <Check size={18} /> : <Plus size={18} />}
-            {streakChecked ? "Preso" : "+12"}
+          <button type="button" onClick={claimStreak} disabled={profile.lastStreakAt === todayKey()}>
+            {profile.lastStreakAt === todayKey() ? <Check size={18} /> : <Plus size={18} />}
+            {profile.lastStreakAt === todayKey() ? "Preso" : "+12"}
           </button>
         </div>
       </aside>
@@ -164,20 +589,32 @@ export function TopicTimeApp() {
       <section className="workspace">
         <header className="topbar">
           <div>
-            <p className="eyeline">Chatroom a tempo</p>
-            <h1>Conosci persone partendo dagli interessi.</h1>
+            <p className="eyeline">{databaseOnline ? "Supabase collegato" : "Demo interattiva"}</p>
+            <h1>Topic, chatroom, wallet e amicizie in un solo flusso.</h1>
           </div>
 
           <div className="topbar-actions">
             <label className="search-box" htmlFor="room-search">
               <Search size={18} />
-              <input id="room-search" type="search" placeholder="Cerca topic" />
+              <input
+                id="room-search"
+                type="search"
+                placeholder="Cerca topic, host, domanda"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+              />
             </label>
-            <button className="icon-button" type="button" aria-label="Notifiche">
+            <button className="icon-button" type="button" aria-label="Notifiche" onClick={markNotificationsRead}>
               <Bell size={18} />
+              {unreadCount ? <span className="notification-dot">{unreadCount}</span> : null}
             </button>
           </div>
         </header>
+
+        <section className="status-strip" aria-live="polite">
+          <span>{syncMessage}</span>
+          <b>{profile.coins} monete</b>
+        </section>
 
         <section className="main-grid">
           <div className="primary-column">
@@ -187,9 +624,9 @@ export function TopicTimeApp() {
                   <p className="eyeline">In partenza</p>
                   <h2 id="rooms-title">Scegli una stanza</h2>
                 </div>
-                <div className="coin-chip" aria-label={`${coinBalance} monete disponibili`}>
+                <div className="coin-chip" aria-label={`${profile.coins} monete disponibili`}>
                   <Image src="/brand/coin-icon.png" alt="" width={22} height={18} />
-                  {coinBalance}
+                  {profile.coins}
                 </div>
               </div>
 
@@ -210,7 +647,6 @@ export function TopicTimeApp() {
                 {filteredRooms.map((room) => {
                   const RoomIcon = room.icon;
                   const selected = room.id === selectedRoom.id;
-                  const joined = joinedRoomIds.includes(room.id);
 
                   return (
                     <button
@@ -226,7 +662,7 @@ export function TopicTimeApp() {
                       <span className="room-body">
                         <span className="room-title-row">
                           <strong>{room.title}</strong>
-                          {joined ? <Check size={17} /> : null}
+                          {room.joined ? <Check size={17} /> : null}
                         </span>
                         <span>{room.prompt}</span>
                         <span className="room-meta">
@@ -242,6 +678,7 @@ export function TopicTimeApp() {
                             <Coins size={15} />
                             {room.cost === 0 ? "free" : room.cost}
                           </span>
+                          {room.isPremium ? <span>premium</span> : null}
                         </span>
                       </span>
                     </button>
@@ -256,7 +693,7 @@ export function TopicTimeApp() {
                   <p className="eyeline">room://{selectedRoom.id}</p>
                   <h2 id="live-title">{selectedRoom.title}</h2>
                 </div>
-                <strong className="timer">{selectedRoom.timer}</strong>
+                <strong className="timer">{selectedRoom.endsAt}</strong>
               </div>
 
               <div className="prompt-strip">
@@ -264,16 +701,22 @@ export function TopicTimeApp() {
                 <p>{selectedRoom.prompt}</p>
               </div>
 
+              <p className="room-description">{selectedRoom.description}</p>
+
               <div className="live-stats" aria-label="Dettagli stanza">
+                <span>{selectedRoom.status}</span>
                 <span>{selectedRoom.mood}</span>
                 <span>{selectedRoom.people} persone</span>
                 <span>{selectedRoom.compatibility}% compatibile</span>
               </div>
 
               <div className="chat-log">
-                {selectedMessages.map((message, index) => (
-                  <article className={`chat-message ${message.tone ?? "member"}`} key={index}>
-                    <strong>{message.author}</strong>
+                {selectedMessages.map((message) => (
+                  <article className={`chat-message ${message.tone ?? "member"}`} key={message.id}>
+                    <span>
+                      <strong>{message.author}</strong>
+                      <small>{message.createdAt}</small>
+                    </span>
                     <p>{message.text}</p>
                   </article>
                 ))}
@@ -282,7 +725,7 @@ export function TopicTimeApp() {
               <form className="composer" onSubmit={handleSendMessage}>
                 <input
                   aria-label="Messaggio"
-                  placeholder="Scrivi nella stanza"
+                  placeholder={selectedRoom.joined ? "Scrivi nella stanza" : "Entra per scrivere"}
                   value={draftMessage}
                   onChange={(event) => setDraftMessage(event.target.value)}
                 />
@@ -291,19 +734,171 @@ export function TopicTimeApp() {
                 </button>
               </form>
 
-              <button className="primary-action wide" type="button" onClick={joinSelectedRoom}>
-                {joinedSelectedRoom ? <Check size={18} /> : <UserPlus size={18} />}
-                {joinedSelectedRoom
-                  ? "Sei dentro"
-                  : selectedRoom.cost > coinBalance
-                    ? "Ricarica per entrare"
-                    : "Entra nella stanza"}
-              </button>
+              <div className="action-row">
+                <button className="primary-action wide" type="button" onClick={joinSelectedRoom}>
+                  {selectedRoom.joined ? <Check size={18} /> : <UserPlus size={18} />}
+                  {selectedRoom.joined
+                    ? "Sei dentro"
+                    : selectedRoom.people >= selectedRoom.limit
+                      ? "Stanza piena"
+                      : "Entra nella stanza"}
+                </button>
+                <button
+                  className="secondary-action"
+                  type="button"
+                  onClick={() =>
+                    setReports((current) => [
+                      {
+                        id: `rep-${Date.now()}`,
+                        reason: "Segnalazione demo inviata dall'utente",
+                        room: selectedRoom.title,
+                        status: "open",
+                      },
+                      ...current,
+                    ])
+                  }
+                >
+                  <Flag size={18} />
+                  Segnala
+                </button>
+              </div>
+            </section>
+
+            <section className="panel creator-panel" aria-labelledby="creator-title">
+              <div className="panel-heading">
+                <div>
+                  <p className="eyeline">Host lab</p>
+                  <h2 id="creator-title">Crea una chatroom</h2>
+                </div>
+                <Wand2 size={24} />
+              </div>
+
+              <form className="creator-form" onSubmit={handleCreateRoom}>
+                <label>
+                  Topic
+                  <select
+                    value={roomDraft.topic}
+                    onChange={(event) =>
+                      setRoomDraft((current) => ({
+                        ...current,
+                        topic: event.target.value as RoomDraft["topic"],
+                      }))
+                    }
+                  >
+                    {categories
+                      .filter((category) => category !== "Tutti")
+                      .map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label>
+                  Titolo
+                  <input
+                    value={roomDraft.title}
+                    onChange={(event) =>
+                      setRoomDraft((current) => ({ ...current, title: event.target.value }))
+                    }
+                    placeholder="Es. Cinema visto troppo tardi"
+                  />
+                </label>
+                <label className="wide-field">
+                  Domanda iniziale
+                  <textarea
+                    value={roomDraft.prompt}
+                    onChange={(event) =>
+                      setRoomDraft((current) => ({ ...current, prompt: event.target.value }))
+                    }
+                    placeholder="La domanda che fa partire una conversazione vera"
+                  />
+                </label>
+                <label>
+                  Durata
+                  <input
+                    min={10}
+                    max={45}
+                    type="number"
+                    value={roomDraft.durationMinutes}
+                    onChange={(event) =>
+                      setRoomDraft((current) => ({
+                        ...current,
+                        durationMinutes: Number(event.target.value),
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  Max persone
+                  <input
+                    min={2}
+                    max={12}
+                    type="number"
+                    value={roomDraft.maxMembers}
+                    onChange={(event) =>
+                      setRoomDraft((current) => ({
+                        ...current,
+                        maxMembers: Number(event.target.value),
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  Costo monete
+                  <input
+                    min={0}
+                    max={50}
+                    type="number"
+                    value={roomDraft.coinCost}
+                    onChange={(event) =>
+                      setRoomDraft((current) => ({
+                        ...current,
+                        coinCost: Number(event.target.value),
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  Mood
+                  <input
+                    value={roomDraft.mood}
+                    onChange={(event) =>
+                      setRoomDraft((current) => ({ ...current, mood: event.target.value }))
+                    }
+                  />
+                </label>
+                <button className="primary-action wide-field" type="submit">
+                  <Plus size={18} />
+                  Crea stanza
+                </button>
+              </form>
             </section>
           </div>
 
           <aside className="secondary-column">
             <AuthPanel />
+
+            <section className="panel compact-panel" aria-labelledby="notifications-title">
+              <div className="panel-title-row">
+                <span className="icon-badge">
+                  <Megaphone size={18} />
+                </span>
+                <div>
+                  <p className="eyeline">Centro eventi</p>
+                  <h2 id="notifications-title">Notifiche</h2>
+                </div>
+              </div>
+
+              <div className="notice-list">
+                {noticeList.map((notice) => (
+                  <article className={`notice-row ${notice.status}`} key={notice.id}>
+                    <strong>{notice.title}</strong>
+                    <span>{notice.message}</span>
+                  </article>
+                ))}
+              </div>
+            </section>
 
             <section className="panel compact-panel" id="community" aria-labelledby="match-title">
               <div className="panel-title-row">
@@ -317,13 +912,26 @@ export function TopicTimeApp() {
               </div>
 
               <div className="match-list">
-                {companionMatches.map((match) => (
-                  <article className="match-row" key={match.name}>
+                {matches.map((match) => (
+                  <article className="match-row" key={match.id}>
                     <div>
                       <strong>{match.name}</strong>
                       <span>{match.signal}</span>
                     </div>
                     <b>{match.score}%</b>
+                    {match.status === "friend" ? (
+                      <button className="mini-action" type="button">
+                        <Check size={15} />
+                      </button>
+                    ) : match.status === "requested" ? (
+                      <button className="mini-action" type="button" onClick={() => acceptMatch(match.id)}>
+                        Accetta
+                      </button>
+                    ) : (
+                      <button className="mini-action" type="button" onClick={() => requestMatch(match.id)}>
+                        <UserPlus size={15} />
+                      </button>
+                    )}
                   </article>
                 ))}
               </div>
@@ -335,23 +943,70 @@ export function TopicTimeApp() {
                   <Crown size={18} />
                 </span>
                 <div>
-                  <p className="eyeline">Premium</p>
-                  <h2 id="wallet-title">Temi e monete</h2>
+                  <p className="eyeline">Wallet</p>
+                  <h2 id="wallet-title">Monete e Premium</h2>
                 </div>
               </div>
 
+              <div className="wallet-balance">
+                <Image src="/brand/coin-icon.png" alt="" width={38} height={32} />
+                <strong>{profile.coins}</strong>
+                <span>{premiumActive ? "Premium attivo" : "Free plan"}</span>
+              </div>
+
+              <div className="wallet-actions">
+                <button type="button" onClick={watchAdReward}>
+                  <Eye size={16} />
+                  Annuncio +20
+                </button>
+                <button type="button" onClick={activatePremium}>
+                  <Crown size={16} />
+                  Premium 99
+                </button>
+              </div>
+
+              <div className="coin-pack-list">
+                {coinPacks.map((pack) => (
+                  <button key={pack.label} type="button" onClick={() => buyCoinPack(pack.amount, pack.label)}>
+                    <span>{pack.label}</span>
+                    <b>+{pack.amount}</b>
+                    <small>{pack.price} euro</small>
+                  </button>
+                ))}
+              </div>
+
               <div className="theme-switcher" role="group" aria-label="Tema chat">
-                {themeOptions.map((option) => (
+                {themes.map((option) => (
                   <button
                     type="button"
                     key={option.id}
-                    className={theme === option.id ? "is-selected" : ""}
-                    onClick={() => setTheme(option.id)}
+                    className={profile.selectedThemeId === option.id ? "is-selected" : ""}
+                    onClick={() => selectOrBuyTheme(option)}
                   >
                     <Palette size={16} />
                     <span>{option.label}</span>
-                    <small>{option.price === 0 ? "free" : `${option.price}`}</small>
+                    <small>
+                      {option.owned ? "owned" : option.premiumOnly ? "premium" : option.price}
+                    </small>
                   </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="panel compact-panel" aria-labelledby="transactions-title">
+              <div>
+                <p className="eyeline">Ledger</p>
+                <h2 id="transactions-title">Movimenti</h2>
+              </div>
+              <div className="transaction-list">
+                {transactions.map((transaction) => (
+                  <article className="transaction-row" key={transaction.id}>
+                    <span>{transaction.reason}</span>
+                    <b className={transaction.amount > 0 ? "positive" : "negative"}>
+                      {transaction.amount > 0 ? "+" : ""}
+                      {transaction.amount}
+                    </b>
+                  </article>
                 ))}
               </div>
             </section>
@@ -361,14 +1016,86 @@ export function TopicTimeApp() {
                 <p className="eyeline">Profilo</p>
                 <h2 id="profile-title">Interessi prima della copertina</h2>
               </div>
-              <div className="interest-cloud" aria-label="Interessi profilo">
-                <span>Cinema</span>
-                <span>Libri</span>
-                <span>Viaggi lenti</span>
-                <span>Playlist</span>
+
+              <form className="profile-form" onSubmit={handleSaveProfile}>
+                <label>
+                  Nome
+                  <input
+                    value={profile.displayName}
+                    onChange={(event) =>
+                      setProfile((current) => ({ ...current, displayName: event.target.value }))
+                    }
+                  />
+                </label>
+                <label>
+                  Username
+                  <input
+                    value={profile.username}
+                    onChange={(event) =>
+                      setProfile((current) => ({ ...current, username: event.target.value }))
+                    }
+                  />
+                </label>
+                <label>
+                  Bio
+                  <textarea
+                    value={profile.bio}
+                    onChange={(event) =>
+                      setProfile((current) => ({ ...current, bio: event.target.value }))
+                    }
+                  />
+                </label>
+                <div className="interest-cloud" aria-label="Interessi profilo">
+                  {profile.interests.map((interest) => (
+                    <button key={interest} type="button" onClick={() => removeInterest(interest)}>
+                      {interest}
+                      <X size={13} />
+                    </button>
+                  ))}
+                </div>
+                <div className="input-row">
+                  <Sparkles size={16} />
+                  <input
+                    aria-label="Nuovo interesse"
+                    placeholder="Aggiungi interesse"
+                    value={newInterest}
+                    onChange={(event) => setNewInterest(event.target.value)}
+                  />
+                  <button className="mini-action" type="button" onClick={addInterest}>
+                    <Plus size={15} />
+                  </button>
+                </div>
+                <div className="profile-meter" aria-label={`Completezza profilo ${profileProgress} percento`}>
+                  <span style={{ width: `${profileProgress}%` }} />
+                </div>
+                <button className="primary-action" type="submit">
+                  Salva profilo
+                </button>
+              </form>
+            </section>
+
+            <section className="panel compact-panel" aria-labelledby="moderation-title">
+              <div className="panel-title-row">
+                <span className="icon-badge">
+                  <ShieldAlert size={18} />
+                </span>
+                <div>
+                  <p className="eyeline">Trust & safety</p>
+                  <h2 id="moderation-title">Moderazione</h2>
+                </div>
               </div>
-              <div className="profile-meter" aria-label="Completezza profilo 68 percento">
-                <span style={{ width: "68%" }} />
+              <div className="report-list">
+                {reports.map((report) => (
+                  <article className={`report-row ${report.status}`} key={report.id}>
+                    <div>
+                      <strong>{report.room}</strong>
+                      <span>{report.reason}</span>
+                    </div>
+                    <button className="mini-action" type="button" onClick={() => closeReport(report.id)}>
+                      {report.status}
+                    </button>
+                  </article>
+                ))}
               </div>
             </section>
           </aside>
