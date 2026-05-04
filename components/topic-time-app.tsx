@@ -7,6 +7,7 @@ import {
   Check,
   Clock,
   Coins,
+  Copy,
   Crown,
   Eye,
   Flag,
@@ -14,6 +15,7 @@ import {
   Gift,
   Hash,
   LockKeyhole,
+  LogOut,
   Megaphone,
   MessageCircle,
   Palette,
@@ -21,9 +23,12 @@ import {
   Search,
   Send,
   ShieldAlert,
+  SmilePlus,
   Sparkles,
   UserPlus,
   Users,
+  Volume2,
+  VolumeX,
   Wand2,
   X,
 } from "lucide-react";
@@ -60,9 +65,11 @@ import {
   claimFreeGiftInDatabase,
   createRoomInDatabase,
   joinRoomInDatabase,
+  leaveRoomInDatabase,
   loadTopicTimeSnapshot,
   postMessageInDatabase,
   purchaseThemeInDatabase,
+  reactToMessageInDatabase,
   saveProfileInDatabase,
 } from "@/lib/topic-time-db";
 
@@ -71,6 +78,15 @@ const coinPacks = [
   { amount: 80, label: "Room pass", price: "4,99" },
   { amount: 180, label: "Creator", price: "9,99" },
 ];
+
+const quickReplies = [
+  "Sono d'accordo perche",
+  "Io la vedo diversamente:",
+  "Mi aggancio a questo punto",
+  "Domanda secca:",
+];
+
+const messageReactions = ["+1", "<3", "!!"];
 
 type AccessState = "loading" | "guest" | "demo" | "authenticated";
 
@@ -87,14 +103,16 @@ function makeSlug(value: string) {
     .slice(0, 42);
 }
 
-function makeMessage(text: string): ChatMessage {
+function makeMessage(text: string, id = `m-${Date.now()}`): ChatMessage {
   return {
     author: "Tu",
     createdAt: new Date().toLocaleTimeString("it-IT", {
       hour: "2-digit",
       minute: "2-digit",
     }),
-    id: `m-${Date.now()}`,
+    id,
+    reactions: {},
+    status: "sent",
     text,
     tone: "you",
   };
@@ -258,6 +276,13 @@ export function TopicTimeApp() {
     });
   }
 
+  function selectRoom(roomId: string) {
+    setSelectedRoomId(roomId);
+    setRoomsState((current) =>
+      current.map((room) => (room.id === roomId ? { ...room, unreadCount: 0 } : room)),
+    );
+  }
+
   async function joinSelectedRoom() {
     if (!isAppUnlocked) {
       setSync({ message: "Prima accedi: solo gli utenti loggati possono entrare nelle chat." });
@@ -355,10 +380,121 @@ export function TopicTimeApp() {
 
     setMessagesByRoom((current) => ({
       ...current,
-      [selectedRoom.id]: [...(current[selectedRoom.id] ?? []), makeMessage(trimmedMessage)],
+      [selectedRoom.id]: [
+        ...(current[selectedRoom.id] ?? []),
+        makeMessage(trimmedMessage, result.data?.message_id ?? `m-${Date.now()}`),
+      ],
     }));
     setDraftMessage("");
     setSync(result);
+  }
+
+  async function leaveSelectedRoom() {
+    if (!selectedRoom.joined) {
+      setSync({ message: "Non sei ancora dentro questa stanza." });
+      return;
+    }
+
+    const result = await leaveRoomInDatabase(selectedRoom.id);
+
+    if (!result.ok) {
+      setSync(result);
+      return;
+    }
+
+    setRoomsState((current) =>
+      current.map((room) =>
+        room.id === selectedRoom.id
+          ? {
+              ...room,
+              joined: false,
+              participants: room.participants.filter((participant) => participant !== profile.displayName),
+              people: Math.max(0, room.people - 1),
+            }
+          : room,
+      ),
+    );
+    setMessagesByRoom((current) => ({
+      ...current,
+      [selectedRoom.id]: [
+        ...(current[selectedRoom.id] ?? []),
+        {
+          author: "TopicTime",
+          createdAt: "Ora",
+          id: `system-leave-${Date.now()}`,
+          text: "Hai lasciato la stanza. Puoi rientrare finche resta aperta.",
+          tone: "system",
+        },
+      ],
+    }));
+    setSync(result);
+  }
+
+  async function reactToMessage(messageId: string, reaction: string) {
+    const result = await reactToMessageInDatabase(messageId, reaction);
+
+    if (!result.ok) {
+      setSync(result);
+      return;
+    }
+
+    setMessagesByRoom((current) => ({
+      ...current,
+      [selectedRoom.id]: (current[selectedRoom.id] ?? []).map((message) =>
+        message.id === messageId
+          ? {
+              ...message,
+              reactions: {
+                ...(message.reactions ?? {}),
+                [reaction]: (message.reactions?.[reaction] ?? 0) + 1,
+              },
+            }
+          : message,
+      ),
+    }));
+  }
+
+  function addQuickReply(reply: string) {
+    if (!selectedRoom.joined) {
+      setSync({ message: "Entra nella stanza per usare le risposte rapide." });
+      return;
+    }
+
+    setDraftMessage((current) => (current ? `${current} ${reply}` : reply));
+  }
+
+  function quoteMessage(message: ChatMessage) {
+    if (!selectedRoom.joined) {
+      setSync({ message: "Entra nella stanza per rispondere a un messaggio." });
+      return;
+    }
+
+    setDraftMessage((current) => `${current ? `${current} ` : ""}@${message.author} `);
+  }
+
+  async function copyRoomInvite() {
+    const inviteUrl = `${window.location.origin}/?room=${selectedRoom.id}`;
+
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setSync({ message: "Link invito copiato negli appunti." });
+    } catch {
+      setSync({ message: `Invito stanza: ${inviteUrl}` });
+    }
+  }
+
+  function toggleMuteSelectedRoom() {
+    setRoomsState((current) =>
+      current.map((room) =>
+        room.id === selectedRoom.id
+          ? {
+              ...room,
+              muted: !room.muted,
+            }
+          : room,
+      ),
+    );
+    setSync({ message: selectedRoom.muted ? "Notifiche stanza riattivate." : "Stanza silenziata." });
   }
 
   async function claimStreak() {
@@ -377,8 +513,8 @@ export function TopicTimeApp() {
     }
 
     if (reward <= 0) {
-      setProfile((current) => ({ ...current, lastGiftAt: todayKey() }));
-      setSync({ message: "Regalo gratuito gia riscattato oggi.", mode: result.mode });
+      setProfile((current) => ({ ...current, lastStreakAt: todayKey() }));
+      setSync({ message: "Bonus streak gia riscattato oggi.", mode: result.mode });
       return;
     }
 
@@ -573,6 +709,7 @@ export function TopicTimeApp() {
       isPremium: false,
       joined: true,
       limit: roomDraft.maxMembers,
+      muted: false,
       mood: roomDraft.mood,
       participants: [profile.displayName],
       people: 1,
@@ -580,6 +717,7 @@ export function TopicTimeApp() {
       startsAt: "Tra 10 min",
       status: "scheduled",
       title: roomDraft.title,
+      unreadCount: 0,
     };
 
     setRoomsState((current) => [newRoom, ...current]);
@@ -800,7 +938,7 @@ export function TopicTimeApp() {
                       className={`room-card ${selected ? "is-selected" : ""}`}
                       key={room.id}
                       type="button"
-                      onClick={() => setSelectedRoomId(room.id)}
+                      onClick={() => selectRoom(room.id)}
                       aria-pressed={selected}
                     >
                       <span className="room-icon">
@@ -826,11 +964,24 @@ export function TopicTimeApp() {
                             {room.cost === 0 ? "free" : room.cost}
                           </span>
                           {room.isPremium ? <span>premium</span> : null}
+                          {room.muted ? <span>mute</span> : null}
                         </span>
+                        {room.unreadCount > 0 ? (
+                          <span className="unread-pill">{room.unreadCount} nuovi</span>
+                        ) : null}
                       </span>
                     </button>
                   );
                 })}
+                {filteredRooms.length === 0 ? (
+                  <div className="empty-state">
+                    <strong>Nessuna stanza trovata</strong>
+                    <span>Cambia ricerca o genera una nuova lobby casuale.</span>
+                    <button className="mini-action" type="button" onClick={() => seedRandomLobby(true)}>
+                      Genera stanze
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </section>
 
@@ -841,6 +992,21 @@ export function TopicTimeApp() {
                   <h2 id="live-title">{selectedRoom.title}</h2>
                 </div>
                 <strong className="timer">{selectedRoom.endsAt}</strong>
+              </div>
+
+              <div className="room-toolbar" aria-label="Azioni stanza">
+                <button className="mini-action" type="button" onClick={copyRoomInvite}>
+                  <Copy size={15} />
+                  Invita
+                </button>
+                <button className="mini-action" type="button" onClick={toggleMuteSelectedRoom}>
+                  {selectedRoom.muted ? <Volume2 size={15} /> : <VolumeX size={15} />}
+                  {selectedRoom.muted ? "Riattiva" : "Silenzia"}
+                </button>
+                <button className="mini-action" type="button" onClick={leaveSelectedRoom} disabled={!selectedRoom.joined}>
+                  <LogOut size={15} />
+                  Esci
+                </button>
               </div>
 
               <div className="prompt-strip">
@@ -864,15 +1030,53 @@ export function TopicTimeApp() {
                 ))}
               </div>
 
+              <div className="room-rules" aria-label="Regole della chatroom">
+                <span>Rispondi al topic</span>
+                <span>Niente spam</span>
+                <span>Profilo visibile dopo l'ingresso</span>
+              </div>
+
               <div className="chat-log">
-                {selectedMessages.map((message) => (
-                  <article className={`chat-message ${message.tone ?? "member"}`} key={message.id}>
-                    <span>
-                      <strong>{message.author}</strong>
-                      <small>{message.createdAt}</small>
-                    </span>
-                    <p>{message.text}</p>
-                  </article>
+                {selectedMessages.length > 0 ? (
+                  selectedMessages.map((message) => (
+                    <article className={`chat-message ${message.tone ?? "member"}`} key={message.id}>
+                      <span>
+                        <strong>{message.author}</strong>
+                        <small>{message.createdAt}</small>
+                      </span>
+                      <p>{message.text}</p>
+                      {message.status ? <small className="message-status">{message.status}</small> : null}
+                      <div className="message-actions" aria-label="Azioni messaggio">
+                        <button type="button" onClick={() => quoteMessage(message)}>
+                          Rispondi
+                        </button>
+                        {messageReactions.map((reaction) => (
+                          <button key={reaction} type="button" onClick={() => reactToMessage(message.id, reaction)}>
+                            {reaction} {message.reactions?.[reaction] ?? 0}
+                          </button>
+                        ))}
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <div className="empty-state">
+                    <strong>La stanza e silenziosa</strong>
+                    <span>Entra e manda il primo messaggio sul topic.</span>
+                  </div>
+                )}
+                {draftMessage.trim() && selectedRoom.joined ? (
+                  <p className="typing-indicator">
+                    <SmilePlus size={15} />
+                    Stai scrivendo...
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="quick-replies" aria-label="Risposte rapide">
+                {quickReplies.map((reply) => (
+                  <button key={reply} type="button" onClick={() => addQuickReply(reply)}>
+                    {reply}
+                  </button>
                 ))}
               </div>
 

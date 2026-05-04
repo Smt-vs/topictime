@@ -34,6 +34,7 @@ export type TopicRoom = {
   isPremium: boolean;
   joined: boolean;
   limit: number;
+  muted: boolean;
   mood: string;
   participants: string[];
   people: number;
@@ -41,12 +42,15 @@ export type TopicRoom = {
   startsAt: string;
   status: RoomStatus;
   title: string;
+  unreadCount: number;
 };
 
 export type ChatMessage = {
   author: string;
   createdAt: string;
   id: string;
+  reactions?: Record<string, number>;
+  status?: "sending" | "sent" | "saved";
   text: string;
   tone?: "host" | "member" | "you" | "system";
 };
@@ -165,6 +169,7 @@ export const rooms: TopicRoom[] = [
     isPremium: false,
     joined: false,
     limit: 6,
+    muted: false,
     mood: "calma",
     participants: ["Laura", "Giulia", "Enrico", "Noemi"],
     people: 4,
@@ -172,6 +177,7 @@ export const rooms: TopicRoom[] = [
     startsAt: "Ora",
     status: "live",
     title: "Fotografia analogica nei film",
+    unreadCount: 2,
   },
   {
     category: "Viaggi",
@@ -186,6 +192,7 @@ export const rooms: TopicRoom[] = [
     isPremium: false,
     joined: false,
     limit: 6,
+    muted: false,
     mood: "curiosa",
     participants: ["Nico", "Irene", "Teo", "Alba", "Rami"],
     people: 5,
@@ -193,6 +200,7 @@ export const rooms: TopicRoom[] = [
     startsAt: "Tra 6 min",
     status: "scheduled",
     title: "Viaggio lento",
+    unreadCount: 1,
   },
   {
     category: "Libri",
@@ -207,6 +215,7 @@ export const rooms: TopicRoom[] = [
     isPremium: false,
     joined: false,
     limit: 6,
+    muted: false,
     mood: "intima",
     participants: ["Marta", "Leo", "Sara"],
     people: 3,
@@ -214,6 +223,7 @@ export const rooms: TopicRoom[] = [
     startsAt: "Tra 14 min",
     status: "scheduled",
     title: "Letture da notte fonda",
+    unreadCount: 0,
   },
   {
     category: "Fitness",
@@ -228,6 +238,7 @@ export const rooms: TopicRoom[] = [
     isPremium: false,
     joined: false,
     limit: 6,
+    muted: false,
     mood: "energia",
     participants: ["Sam", "Chiara", "Luca", "Fede", "Gio", "Mina"],
     people: 6,
@@ -235,6 +246,7 @@ export const rooms: TopicRoom[] = [
     startsAt: "Tra 21 min",
     status: "scheduled",
     title: "Routine sostenibili",
+    unreadCount: 0,
   },
   {
     category: "Musica",
@@ -249,6 +261,7 @@ export const rooms: TopicRoom[] = [
     isPremium: false,
     joined: false,
     limit: 6,
+    muted: false,
     mood: "nostalgia",
     participants: ["Ari", "Blu"],
     people: 2,
@@ -256,6 +269,7 @@ export const rooms: TopicRoom[] = [
     startsAt: "Tra 27 min",
     status: "scheduled",
     title: "Playlist senza skip",
+    unreadCount: 1,
   },
   {
     category: "Cucina",
@@ -270,6 +284,7 @@ export const rooms: TopicRoom[] = [
     isPremium: false,
     joined: false,
     limit: 6,
+    muted: false,
     mood: "accogliente",
     participants: ["Dani", "Milo", "Paola", "Rita"],
     people: 4,
@@ -277,6 +292,7 @@ export const rooms: TopicRoom[] = [
     startsAt: "Tra 32 min",
     status: "scheduled",
     title: "Ricette di casa",
+    unreadCount: 0,
   },
   {
     category: "Gaming",
@@ -291,6 +307,7 @@ export const rooms: TopicRoom[] = [
     isPremium: true,
     joined: false,
     limit: 6,
+    muted: false,
     mood: "vivace",
     participants: ["Vale", "Kira", "Zed", "Fra", "Nina"],
     people: 5,
@@ -298,6 +315,7 @@ export const rooms: TopicRoom[] = [
     startsAt: "Tra 41 min",
     status: "scheduled",
     title: "Co-op memorabili",
+    unreadCount: 0,
   },
 ];
 
@@ -597,6 +615,7 @@ export function createRandomRooms(count = 6): TopicRoom[] {
       isPremium: index === count - 1,
       joined: false,
       limit: 6,
+      muted: false,
       mood: pickRandom(["calma", "curiosa", "leggera", "intensa", "nostalgia"]),
       participants,
       people,
@@ -604,6 +623,7 @@ export function createRandomRooms(count = 6): TopicRoom[] {
       startsAt: startsIn === 0 ? "Ora" : `Tra ${startsIn} min`,
       status: startsIn === 0 ? "live" : "scheduled",
       title: `${category} casuale #${index + 1}`,
+      unreadCount: index < 2 ? 1 : 0,
     };
   });
 }

@@ -151,6 +151,7 @@ function mapRoom(row: RoomCardRow, joinedRoomIds: Set<string>): TopicRoom {
     isPremium: row.is_premium,
     joined: joinedRoomIds.has(row.id),
     limit: row.max_members,
+    muted: false,
     mood: row.mood,
     participants,
     people,
@@ -158,6 +159,7 @@ function mapRoom(row: RoomCardRow, joinedRoomIds: Set<string>): TopicRoom {
     startsAt: formatRelativeTime(row.starts_at),
     status: row.status,
     title: row.title,
+    unreadCount: joinedRoomIds.has(row.id) ? 0 : Math.min(3, Math.max(0, people - 2)),
   };
 }
 
@@ -471,14 +473,17 @@ export async function joinRoomInDatabase(roomSlug: string): Promise<DbActionResu
   };
 }
 
-export async function postMessageInDatabase(roomSlug: string, body: string): Promise<DbActionResult> {
+export async function postMessageInDatabase(
+  roomSlug: string,
+  body: string,
+): Promise<DbActionResult<{ message_id: string }>> {
   const auth = await requireUser();
 
   if ("ok" in auth) {
-    return auth;
+    return auth as DbActionResult<{ message_id: string }>;
   }
 
-  const { error } = await auth.client.rpc("post_message", {
+  const { data, error } = await auth.client.rpc("post_message", {
     message_body: body,
     room_slug: roomSlug,
   });
@@ -492,7 +497,61 @@ export async function postMessageInDatabase(roomSlug: string, body: string): Pro
   }
 
   return {
+    data: { message_id: data as string },
     message: "Messaggio salvato nel database.",
+    mode: "remote",
+    ok: true,
+  };
+}
+
+export async function leaveRoomInDatabase(roomSlug: string): Promise<DbActionResult> {
+  const auth = await requireUser();
+
+  if ("ok" in auth) {
+    return auth;
+  }
+
+  const { error } = await auth.client.rpc("leave_room", {
+    room_slug: roomSlug,
+  });
+
+  if (error) {
+    return {
+      message: error.message,
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  return {
+    message: "Uscita dalla stanza salvata nel database.",
+    mode: "remote",
+    ok: true,
+  };
+}
+
+export async function reactToMessageInDatabase(messageId: string, reaction: string): Promise<DbActionResult> {
+  const auth = await requireUser();
+
+  if ("ok" in auth) {
+    return auth;
+  }
+
+  const { error } = await auth.client.rpc("toggle_message_reaction", {
+    reaction_emoji: reaction,
+    target_message_id: messageId,
+  });
+
+  if (error) {
+    return {
+      message: error.message,
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  return {
+    message: "Reazione aggiornata.",
     mode: "remote",
     ok: true,
   };

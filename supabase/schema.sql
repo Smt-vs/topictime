@@ -85,6 +85,14 @@ create table if not exists public.messages (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.message_reactions (
+  message_id uuid not null references public.messages(id) on delete cascade,
+  profile_id uuid not null references public.profiles(id) on delete cascade,
+  emoji text not null check (emoji in ('+1', '<3', '!!')),
+  created_at timestamptz not null default now(),
+  primary key (message_id, profile_id, emoji)
+);
+
 create table if not exists public.friendships (
   requester_id uuid not null references public.profiles(id) on delete cascade,
   addressee_id uuid not null references public.profiles(id) on delete cascade,
@@ -131,6 +139,7 @@ create index if not exists rooms_status_starts_idx on public.rooms (status, star
 create index if not exists rooms_topic_starts_idx on public.rooms (topic_id, starts_at);
 create index if not exists room_members_profile_idx on public.room_members (profile_id, joined_at desc);
 create index if not exists messages_room_created_idx on public.messages (room_id, created_at desc);
+create index if not exists message_reactions_message_idx on public.message_reactions (message_id);
 create index if not exists friendships_addressee_idx on public.friendships (addressee_id, status);
 create index if not exists wallet_profile_created_idx on public.wallet_transactions (profile_id, created_at desc);
 create index if not exists notifications_profile_unread_idx on public.notifications (profile_id, created_at desc) where read_at is null;
@@ -325,6 +334,99 @@ begin
   returning id into created_message_id;
 
   return created_message_id;
+end;
+$$;
+
+create or replace function public.leave_room(room_slug text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_user_id uuid := (select auth.uid());
+  target_room_id uuid;
+begin
+  if current_user_id is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  select id into target_room_id
+  from public.rooms
+  where slug = room_slug;
+
+  if target_room_id is null then
+    raise exception 'room_not_found';
+  end if;
+
+  update public.room_members
+  set left_at = now()
+  where room_id = target_room_id
+    and profile_id = current_user_id
+    and left_at is null;
+
+  return jsonb_build_object('left', true);
+end;
+$$;
+
+create or replace function public.toggle_message_reaction(target_message_id uuid, reaction_emoji text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_user_id uuid := (select auth.uid());
+  target_room_id uuid;
+  reaction_exists boolean;
+begin
+  if current_user_id is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  if reaction_emoji not in ('+1', '<3', '!!') then
+    raise exception 'reaction_not_allowed';
+  end if;
+
+  select room_id into target_room_id
+  from public.messages
+  where id = target_message_id;
+
+  if target_room_id is null then
+    raise exception 'message_not_found';
+  end if;
+
+  if not exists (
+    select 1
+    from public.room_members
+    where room_id = target_room_id
+      and profile_id = current_user_id
+      and left_at is null
+  ) then
+    raise exception 'not_room_member';
+  end if;
+
+  select exists (
+    select 1
+    from public.message_reactions
+    where message_id = target_message_id
+      and profile_id = current_user_id
+      and emoji = reaction_emoji
+  ) into reaction_exists;
+
+  if reaction_exists then
+    delete from public.message_reactions
+    where message_id = target_message_id
+      and profile_id = current_user_id
+      and emoji = reaction_emoji;
+
+    return jsonb_build_object('selected', false);
+  end if;
+
+  insert into public.message_reactions (message_id, profile_id, emoji)
+  values (target_message_id, current_user_id, reaction_emoji);
+
+  return jsonb_build_object('selected', true);
 end;
 $$;
 
@@ -766,12 +868,15 @@ group by rooms.id, topics.slug, topics.name, profiles.display_name;
 
 grant usage on schema public to anon, authenticated;
 grant select on public.themes, public.topics, public.rooms, public.room_cards to anon, authenticated;
-grant select on public.profiles, public.profile_themes, public.room_members, public.messages to authenticated;
+grant select on public.profiles, public.profile_themes, public.room_members, public.messages, public.message_reactions to authenticated;
 grant select on public.friendships, public.wallet_transactions, public.notifications, public.moderation_reports to authenticated;
 grant update on public.profiles, public.rooms, public.room_members, public.notifications, public.friendships to authenticated;
-grant insert on public.messages, public.friendships, public.moderation_reports to authenticated;
+grant insert on public.messages, public.message_reactions, public.friendships, public.moderation_reports to authenticated;
+grant delete on public.message_reactions to authenticated;
 grant execute on function public.join_room(text) to authenticated;
 grant execute on function public.post_message(text, text) to authenticated;
+grant execute on function public.leave_room(text) to authenticated;
+grant execute on function public.toggle_message_reaction(uuid, text) to authenticated;
 grant execute on function public.claim_daily_streak() to authenticated;
 grant execute on function public.claim_free_gift() to authenticated;
 grant execute on function public.purchase_theme(text) to authenticated;
@@ -787,6 +892,7 @@ alter table public.topics enable row level security;
 alter table public.rooms enable row level security;
 alter table public.room_members enable row level security;
 alter table public.messages enable row level security;
+alter table public.message_reactions enable row level security;
 alter table public.friendships enable row level security;
 alter table public.wallet_transactions enable row level security;
 alter table public.notifications enable row level security;
@@ -876,6 +982,28 @@ with check (
       and room_members.profile_id = (select auth.uid())
   )
 );
+
+drop policy if exists "members can read message reactions" on public.message_reactions;
+create policy "members can read message reactions"
+on public.message_reactions for select
+to authenticated
+using (
+  exists (
+    select 1
+    from public.messages
+    join public.room_members on room_members.room_id = messages.room_id
+    where messages.id = message_reactions.message_id
+      and room_members.profile_id = (select auth.uid())
+      and room_members.left_at is null
+  )
+);
+
+drop policy if exists "members manage own message reactions" on public.message_reactions;
+create policy "members manage own message reactions"
+on public.message_reactions for all
+to authenticated
+using ((select auth.uid()) = profile_id)
+with check ((select auth.uid()) = profile_id);
 
 drop policy if exists "friendships visible to participants" on public.friendships;
 create policy "friendships visible to participants"
