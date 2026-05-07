@@ -89,7 +89,7 @@ function demoResult(message: string): DbActionResult {
 
 function unavailableResult(): DbActionResult {
   return {
-    message: "Supabase non e configurato: azione salvata solo nella demo locale.",
+    message: "Azione registrata su questo dispositivo.",
     mode: "demo",
     ok: true,
   };
@@ -198,7 +198,7 @@ export async function loadTopicTimeSnapshot(): Promise<DbActionResult<TopicTimeS
 
   if (!client) {
     return {
-      message: "Demo locale attiva: dati caricati dai seed dell'app.",
+      message: "Modalita prova attiva: lobby, wallet e profilo sono pronti.",
       mode: "demo",
       ok: true,
     };
@@ -349,8 +349,8 @@ export async function loadTopicTimeSnapshot(): Promise<DbActionResult<TopicTimeS
       })),
     },
     message: userId
-      ? "Dati reali caricati da Supabase."
-      : "Stanze e temi caricati da Supabase. Accedi per profilo e wallet.",
+      ? "Bentornato: stanze, wallet e profilo sono aggiornati."
+      : "Lobby pronta. Accedi per salvare profilo e wallet.",
     mode: "remote",
     ok: true,
   };
@@ -367,7 +367,7 @@ async function requireUser(): Promise<{ client: NonNullable<ReturnType<typeof ge
 
   if (error || !data.user) {
     return {
-      message: "Accedi con il link magico per salvare questa azione nel database.",
+      message: "Accedi per completare questa azione e salvarla sul tuo profilo.",
       mode: "remote",
       ok: false,
     };
@@ -398,7 +398,7 @@ export async function sendMagicLink(email: string): Promise<DbActionResult> {
   const client = getSupabaseClient();
 
   if (!client) {
-    return demoResult("Modalita demo: configura Supabase per inviare davvero il link.");
+    return demoResult("Accesso email non attivo in questa prova: puoi entrare subito senza account.");
   }
 
   const { error } = await client.auth.signInWithOtp({
@@ -417,7 +417,7 @@ export async function sendMagicLink(email: string): Promise<DbActionResult> {
   }
 
   return {
-    message: "Link magico inviato. Controlla la casella email.",
+    message: "Link sicuro inviato. Controlla la casella email.",
     mode: "remote",
     ok: true,
   };
@@ -427,7 +427,7 @@ export async function signOut(): Promise<DbActionResult> {
   const client = getSupabaseClient();
 
   if (!client) {
-    return demoResult("Sei gia in modalita demo.");
+    return demoResult("Stai usando TopicTime senza account.");
   }
 
   const { error } = await client.auth.signOut();
@@ -467,7 +467,7 @@ export async function joinRoomInDatabase(roomSlug: string): Promise<DbActionResu
   }
 
   return {
-    message: "Ingresso salvato nel database.",
+    message: "Sei dentro la stanza.",
     mode: "remote",
     ok: true,
   };
@@ -498,7 +498,7 @@ export async function postMessageInDatabase(
 
   return {
     data: { message_id: data as string },
-    message: "Messaggio salvato nel database.",
+    message: "Messaggio pubblicato.",
     mode: "remote",
     ok: true,
   };
@@ -524,7 +524,7 @@ export async function leaveRoomInDatabase(roomSlug: string): Promise<DbActionRes
   }
 
   return {
-    message: "Uscita dalla stanza salvata nel database.",
+    message: "Hai lasciato la stanza.",
     mode: "remote",
     ok: true,
   };
@@ -576,7 +576,7 @@ export async function claimStreakInDatabase(): Promise<DbActionResult<{ reward: 
 
   return {
     data: data as { reward: number; streak: number },
-    message: "Bonus streak salvato nel database.",
+    message: "Streak aggiornato: monete aggiunte al wallet.",
     mode: "remote",
     ok: true,
   };
@@ -627,7 +627,7 @@ export async function purchaseThemeInDatabase(themeId: string): Promise<DbAction
   }
 
   return {
-    message: "Tema acquistato nel database.",
+    message: "Tema attivato nel profilo.",
     mode: "remote",
     ok: true,
   };
@@ -654,7 +654,7 @@ export async function activatePremiumInDatabase(): Promise<
 
   return {
     data: data as { coins: number; cost: number; premium_until: string },
-    message: "Premium attivato nel database.",
+    message: "Premium attivo: ora puoi creare stanze.",
     mode: "remote",
     ok: true,
   };
@@ -684,7 +684,7 @@ export async function saveProfileInDatabase(profile: UserProfile): Promise<DbAct
   }
 
   return {
-    message: "Profilo salvato nel database.",
+    message: "Profilo aggiornato.",
     mode: "remote",
     ok: true,
   };
@@ -727,7 +727,7 @@ export async function createRoomInDatabase(input: {
 
   return {
     data: data as { room_slug: string },
-    message: "Stanza creata nel database.",
+    message: "Stanza pubblicata in lobby.",
     mode: "remote",
     ok: true,
   };

@@ -16,7 +16,7 @@ type AuthPanelProps = {
 export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: AuthPanelProps) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<AuthStatus>("idle");
-  const [message, setMessage] = useState("Accesso non ancora avviato.");
+  const [message, setMessage] = useState("Ti mandiamo un link sicuro: niente password da ricordare.");
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
@@ -32,13 +32,13 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
 
       if (!authState.configured) {
         setStatus("demo");
-        setMessage("Modalita demo attiva: aggiungi le env Supabase per sincronizzare.");
+        setMessage("Puoi provare subito TopicTime: stanze, monete e profilo restano su questo dispositivo.");
         return;
       }
 
       if (authState.user) {
         setStatus("online");
-        setMessage(`Sessione attiva: ${authState.user.email ?? "utente Supabase"}.`);
+        setMessage(`Sei dentro come ${authState.user.email ?? "utente TopicTime"}.`);
       }
     });
 
@@ -52,7 +52,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
 
     if (!email.trim()) {
       setStatus("error");
-      setMessage("Inserisci una email valida.");
+      setMessage("Inserisci una email valida per ricevere il link di accesso.");
       return;
     }
 
@@ -79,32 +79,32 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
         </span>
         <div>
           <p className="eyeline">Accesso</p>
-          <h2 id="auth-title">{variant === "gate" ? "Accedi per entrare" : "Entra con Supabase"}</h2>
+          <h2 id="auth-title">{variant === "gate" ? "Entra in TopicTime" : "Account"}</h2>
         </div>
       </div>
 
       {user ? (
         <button className="secondary-action" type="button" onClick={handleSignOut}>
           <LogOut size={18} />
-          Esci
+          Esci dall'account
         </button>
       ) : (
         <form className="auth-form" onSubmit={handleSubmit}>
-          <label htmlFor="email">Email</label>
+          <label htmlFor="email">Email di accesso</label>
           <div className="input-row">
             <Mail size={18} />
             <input
               id="email"
               name="email"
               type="email"
-              placeholder="nome@email.it"
+              placeholder="tu@email.it"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
             />
           </div>
           <button className="primary-action" type="submit">
             <LogIn size={18} />
-            Link magico
+            Ricevi link sicuro
           </button>
         </form>
       )}
@@ -112,7 +112,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
       {onDemoAccess && !user ? (
         <button className="secondary-action" type="button" onClick={onDemoAccess}>
           <ShieldCheck size={18} />
-          Entra in demo
+          Entra e prova ora
         </button>
       ) : null}
 

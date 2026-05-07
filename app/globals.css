@@ -161,6 +161,7 @@ p {
   max-width: 560px;
   font-size: clamp(34px, 6vw, 64px);
   line-height: 0.95;
+  letter-spacing: -0.05em;
 }
 
 .login-copy p:not(.eyeline) {
@@ -189,6 +190,7 @@ p {
   border-radius: var(--radius);
   background: rgba(255, 255, 255, 0.54);
   font-weight: 900;
+  line-height: 1.25;
 }
 
 .sidebar {
@@ -436,6 +438,7 @@ p {
   color: var(--ink-soft);
   font-size: 13px;
   font-weight: 800;
+  line-height: 1.35;
 }
 
 .status-strip b {
@@ -499,6 +502,7 @@ p {
   margin-top: 4px;
   font-size: 24px;
   line-height: 1.1;
+  letter-spacing: -0.02em;
 }
 
 .coin-chip {
@@ -573,6 +577,11 @@ p {
   cursor: pointer;
   text-align: left;
   white-space: normal;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
 }
 
 .room-card:hover,
@@ -734,6 +743,7 @@ p {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: rgba(220, 239, 245, 0.72);
+  color: var(--teal-deep);
 }
 
 .prompt-strip p {
@@ -820,6 +830,17 @@ p {
   color: var(--ink-soft);
   font-size: 12px;
   font-weight: 900;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.message-actions button:hover,
+.quick-replies button:hover {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--line));
+  background: color-mix(in srgb, var(--accent) 12%, #fffaf0);
+  color: var(--accent-deep);
 }
 
 .message-actions button {
@@ -982,6 +1003,7 @@ textarea:disabled {
   color: var(--ink-soft);
   font-size: 13px;
   line-height: 1.35;
+  font-weight: 800;
 }
 
 .auth-status.sent {
@@ -1148,6 +1170,7 @@ textarea:disabled {
   align-items: center;
   justify-content: center;
   gap: 7px;
+  line-height: 1.2;
 }
 
 .coin-pack-list button {
@@ -1212,6 +1235,7 @@ textarea:disabled {
   border-radius: var(--radius);
   background: rgba(255, 250, 240, 0.58);
   color: var(--ink-soft);
+  line-height: 1.4;
 }
 
 .empty-state strong {

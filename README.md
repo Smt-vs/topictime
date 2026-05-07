@@ -17,15 +17,15 @@ NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```
 
-Se le variabili non sono presenti, l'app resta usabile in modalita demo con dati locali.
+Se le variabili non sono presenti, l'app resta esplorabile in modalita prova con dati locali.
 
 ## Funzionalita
 
-- Login gate iniziale con magic link Supabase e fallback demo locale.
-- Stanze generate all'avvio con topic casuali, utenti gia presenti, capienza, costo e stato live/scheduled.
-- Ingresso stanza con RPC Supabase, addebito monete e fallback demo.
-- Chat per stanza con salvataggio messaggi, utenti online, typing indicator, risposte rapide, reply, reazioni, mute, invito e uscita stanza.
-- Wallet con regalo gratuito giornaliero, streak, ricompense annuncio demo, pacchetti monete simulati e ledger movimenti.
+- Login iniziale con link sicuro via email e ingresso di prova locale.
+- Stanze generate all'avvio con topic casuali, utenti gia presenti, capienza, costo e stato leggibile.
+- Ingresso stanza con RPC Supabase, addebito monete e fallback locale.
+- Chat per stanza con salvataggio messaggi, utenti online, typing indicator, risposte rapide, citazioni, reazioni, mute, invito e uscita stanza.
+- Wallet con regalo gratuito giornaliero, streak, ricompense annuncio, pacchetti monete e movimenti recenti.
 - Piano Premium acquistabile con monete; solo utenti Premium possono creare chatroom.
 - Temi acquistabili con monete e blocco Premium.
 - Profilo modificabile con bio, username, interessi e tema attivo.
@@ -42,7 +42,7 @@ Esegui il contenuto di `supabase/schema.sql` nell'SQL editor di Supabase. Lo sch
 - trigger su `auth.users` per creare automaticamente profilo e tema base
 - funzioni RPC `ensure_random_rooms`, `join_room`, `leave_room`, `post_message`, `toggle_message_reaction`, `claim_free_gift`, `claim_daily_streak`, `activate_premium_plan`, `purchase_theme`, `save_profile`, `create_room`
 - policy RLS e grant per `anon` e `authenticated`
-- seed iniziale per topic, temi e stanze demo
+- seed iniziale per topic, temi e stanze di prova
 
 ## Deploy Vercel
 

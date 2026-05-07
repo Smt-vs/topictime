@@ -50,7 +50,7 @@ export type ChatMessage = {
   createdAt: string;
   id: string;
   reactions?: Record<string, number>;
-  status?: "sending" | "sent" | "saved";
+  status?: "inviando" | "inviato" | "salvato";
   text: string;
   tone?: "host" | "member" | "you" | "system";
 };
@@ -145,7 +145,7 @@ export const initialProfile: UserProfile = {
   avatarInitials: "TM",
   bio: "Preferisco stanze lente, domande concrete e conversazioni che continuano anche dopo il timer.",
   coins: 48,
-  displayName: "Teo Demo",
+  displayName: "Teo Topic",
   interests: ["Cinema", "Libri", "Viaggi lenti", "Playlist"],
   lastGiftAt: null,
   lastStreakAt: null,
@@ -493,21 +493,21 @@ export const initialTransactions: WalletTransaction[] = [
 export const notifications: NotificationItem[] = [
   {
     id: "n-room",
-    message: "La stanza Fotografia analogica e live.",
+    message: "Fotografia analogica e aperta: puoi entrare ora.",
     status: "new",
-    title: "Stanza iniziata",
+    title: "Stanza aperta",
   },
   {
     id: "n-match",
-    message: "Giulia e sbloccabile dopo il rituale.",
+    message: "Giulia ha risposto a topic simili ai tuoi.",
     status: "new",
-    title: "Nuova affinita",
+    title: "Nuova persona compatibile",
   },
   {
     id: "n-premium",
-    message: "Tema Midnight Focus disponibile nel wallet.",
+    message: "Midnight Focus si sblocca con Premium.",
     status: "read",
-    title: "Tema premium",
+    title: "Tema Premium",
   },
 ];
 
@@ -607,7 +607,7 @@ export function createRandomRooms(count = 6): TopicRoom[] {
       compatibility: 72 + Math.floor(Math.random() * 24),
       cost: index % 3 === 0 ? 0 : 4 + Math.floor(Math.random() * 9),
       createdBy: "randomizer",
-      description: `Chatroom generata all'avvio con topic casuale: ${category}. Entra, rispondi e scopri gli utenti dopo il primo messaggio.`,
+      description: `Stanza appena generata su ${category}: entra se la domanda ti accende qualcosa e resta sul tema.`,
       endsAt: `Tra ${startsIn + duration} min`,
       host,
       icon: topicIcons[category],
@@ -622,7 +622,7 @@ export function createRandomRooms(count = 6): TopicRoom[] {
       prompt,
       startsAt: startsIn === 0 ? "Ora" : `Tra ${startsIn} min`,
       status: startsIn === 0 ? "live" : "scheduled",
-      title: `${category} casuale #${index + 1}`,
+      title: `${category} in 20 minuti #${index + 1}`,
       unreadCount: index < 2 ? 1 : 0,
     };
   });
@@ -635,7 +635,7 @@ export function createStarterMessagesForRooms(topicRooms: TopicRoom[]) {
         author: room.host,
         createdAt: "Ora",
         id: `seed-${room.id}`,
-        text: `Topic casuale: ${room.prompt}`,
+        text: `Rompiamo il ghiaccio: ${room.prompt}`,
         tone: "host",
       },
     ];
