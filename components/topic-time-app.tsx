@@ -36,19 +36,24 @@ import { AuthPanel } from "@/components/auth-panel";
 import {
   categories,
   companionMatches,
+  communityFeedbacks,
   createRandomRooms,
   createStarterMessagesForRooms,
+  emptyFeedbackDraft,
   emptyRoomDraft,
   initialProfile,
   initialTransactions,
   moderationReports,
   notifications,
+  roadmapUpdates,
   rooms,
   starterMessages,
   themeOptions,
   topicIcons,
   type ChatMessage,
+  type CommunityFeedback,
   type CompanionMatch,
+  type FeedbackDraft,
   type ModerationReport,
   type NotificationItem,
   type RoomDraft,
@@ -71,6 +76,7 @@ import {
   purchaseThemeInDatabase,
   reactToMessageInDatabase,
   saveProfileInDatabase,
+  submitCommunityFeedbackInDatabase,
 } from "@/lib/topic-time-db";
 
 const coinPacks = [
@@ -142,6 +148,22 @@ function reportStatusLabel(status: ModerationReport["status"]) {
   return "Chiusa";
 }
 
+function feedbackStatusLabel(status: CommunityFeedback["status"]) {
+  if (status === "nuovo") {
+    return "Nuova idea";
+  }
+
+  if (status === "in revisione") {
+    return "In revisione";
+  }
+
+  if (status === "pianificato") {
+    return "In roadmap";
+  }
+
+  return "Rilasciata";
+}
+
 export function TopicTimeApp() {
   const [accessState, setAccessState] = useState<AccessState>("loading");
   const [activeCategory, setActiveCategory] = useState<TopicCategory>("Tutti");
@@ -153,11 +175,13 @@ export function TopicTimeApp() {
   const [transactions, setTransactions] = useState<WalletTransaction[]>(initialTransactions);
   const [noticeList, setNoticeList] = useState<NotificationItem[]>(notifications);
   const [reports, setReports] = useState<ModerationReport[]>(moderationReports);
+  const [communityIdeas, setCommunityIdeas] = useState<CommunityFeedback[]>(communityFeedbacks);
   const [roomDraft, setRoomDraft] = useState<RoomDraft>(emptyRoomDraft);
+  const [feedbackDraft, setFeedbackDraft] = useState<FeedbackDraft>(emptyFeedbackDraft);
   const [newInterest, setNewInterest] = useState("");
   const [draftMessage, setDraftMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [syncMessage, setSyncMessage] = useState("TopicTime pronto: scegli una stanza o riscatta il regalo nel wallet.");
+  const [syncMessage, setSyncMessage] = useState("TopicTime pronto: scegli una stanza o riscatta Star nel wallet.");
   const [databaseOnline, setDatabaseOnline] = useState(false);
   const [adViews, setAdViews] = useState(0);
   const deferredSearchTerm = useDeferredValue(searchTerm);
@@ -184,6 +208,17 @@ export function TopicTimeApp() {
 
   useEffect(() => {
     let mounted = true;
+
+    const demoRequested =
+      typeof window !== "undefined" && new URLSearchParams(window.location.search).get("demo") === "1";
+
+    if (demoRequested) {
+      setAccessState("demo");
+      seedRandomLobby(true);
+      return () => {
+        mounted = false;
+      };
+    }
 
     loadTopicTimeSnapshot().then((snapshot) => {
       if (!mounted) {
@@ -229,6 +264,10 @@ export function TopicTimeApp() {
         setNoticeList(snapshotData.notifications);
       }
 
+      if (snapshotData.communityFeedbacks.length > 0) {
+        setCommunityIdeas(snapshotData.communityFeedbacks);
+      }
+
       if (Object.keys(snapshotData.messagesByRoom).length > 0) {
         setMessagesByRoom((current) => ({
           ...current,
@@ -270,13 +309,16 @@ export function TopicTimeApp() {
   );
   const joinedCount = roomsState.filter((room) => room.joined).length;
   const liveCount = roomsState.filter((room) => room.status === "live").length;
+  const feedbackVotes = communityIdeas.reduce((total, idea) => total + idea.votes, 0);
+  const dailyRoomLimit = premiumActive ? "Illimitate" : "5 stanze";
+  const starMultiplier = premiumActive ? "2x" : "1x";
   const selectedRoomEntryLabel = selectedRoom.joined
     ? "Sei dentro"
     : selectedRoom.people >= selectedRoom.limit
       ? "Stanza piena"
       : selectedRoom.cost === 0
         ? "Entra gratis"
-        : `Entra con ${selectedRoom.cost} monete`;
+        : `Entra con ${selectedRoom.cost} Star`;
 
   function setSync(result: { message: string; mode?: "demo" | "remote"; ok?: boolean }) {
     const prefix = result.ok === false ? "Attenzione" : result.mode === "remote" ? "Fatto" : "Nota";
@@ -316,7 +358,7 @@ export function TopicTimeApp() {
 
   async function joinSelectedRoom() {
     if (!isAppUnlocked) {
-      setSync({ message: "Accedi prima di entrare: cosi salvi monete, chat e progressi." });
+      setSync({ message: "Accedi prima di entrare: cosi salvi Star, chat e progressi." });
       return;
     }
 
@@ -336,7 +378,7 @@ export function TopicTimeApp() {
     }
 
     if (selectedRoom.cost > profile.coins) {
-      setSync({ message: "Monete insufficienti. Riscatta il regalo o guarda un annuncio nel wallet." });
+      setSync({ message: "Star insufficienti. Riscatta il regalo o guarda un annuncio nel wallet." });
       return;
     }
 
@@ -561,7 +603,7 @@ export function TopicTimeApp() {
 
   async function claimFreeGift() {
     if (giftClaimedToday) {
-      setSync({ message: "Regalo gia preso oggi. Domani trovi nuove monete gratis." });
+      setSync({ message: "Regalo gia preso oggi. Domani trovi nuove Star gratis." });
       return;
     }
 
@@ -591,7 +633,7 @@ export function TopicTimeApp() {
     setAdViews((current) => current + 1);
     setProfile((current) => ({ ...current, coins: current.coins + 20 }));
     addTransaction(20, "Ricompensa annuncio");
-    setSync({ message: "+20 monete aggiunte al wallet." });
+    setSync({ message: "+20 Star aggiunte al wallet." });
   }
 
   function buyCoinPack(amount: number, label: string) {
@@ -613,7 +655,7 @@ export function TopicTimeApp() {
     }
 
     if (profile.coins < theme.price) {
-      setSync({ message: "Monete insufficienti per questo tema." });
+      setSync({ message: "Star insufficienti per questo tema." });
       return;
     }
 
@@ -638,7 +680,7 @@ export function TopicTimeApp() {
 
   async function activatePremium() {
     if (profile.coins < 99) {
-      setSync({ message: "Servono 99 monete per attivare Premium." });
+      setSync({ message: "Servono 99 Star per attivare Premium." });
       return;
     }
 
@@ -769,6 +811,69 @@ export function TopicTimeApp() {
     setSync(result);
   }
 
+  function voteCommunityIdea(ideaId: string) {
+    setCommunityIdeas((current) =>
+      current.map((idea) => (idea.id === ideaId ? { ...idea, votes: idea.votes + 1 } : idea)),
+    );
+    setSync({ message: "Voto aggiunto. Le idee piu votate entrano nella roadmap del prodotto." });
+  }
+
+  async function handleSubmitCommunityFeedback(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!isAppUnlocked) {
+      setSync({ message: "Accedi o entra in prova per inviare feedback alla community." });
+      return;
+    }
+
+    const title = feedbackDraft.title.trim();
+    const body = feedbackDraft.body.trim();
+
+    if (!title || !body) {
+      setSync({ message: "Scrivi un titolo e una proposta concreta prima di pubblicare." });
+      return;
+    }
+
+    const result = await submitCommunityFeedbackInDatabase({
+      body,
+      category: feedbackDraft.category,
+      title,
+    });
+
+    if (!result.ok) {
+      setSync(result);
+      return;
+    }
+
+    const reward = result.data?.reward ?? 5;
+    const newIdea: CommunityFeedback = {
+      author: profile.displayName,
+      body,
+      category: feedbackDraft.category,
+      createdAt: "Adesso",
+      id: result.data?.id ?? `cf-${Date.now()}`,
+      reward,
+      status: "nuovo",
+      title,
+      votes: 1,
+    };
+
+    setCommunityIdeas((current) => [newIdea, ...current]);
+    setFeedbackDraft(emptyFeedbackDraft);
+    setProfile((current) => ({ ...current, coins: current.coins + reward }));
+    addTransaction(reward, "Feedback community");
+    setNoticeList((current) => [
+      {
+        id: `notice-community-${Date.now()}`,
+        message: "La tua proposta e entrata nel Community Hub.",
+        status: "new",
+        title: `+${reward} Star feedback`,
+      },
+      ...current,
+    ]);
+    setSync(result);
+  }
+
   function requestMatch(matchId: string) {
     setMatches((current) =>
       current.map((match) => (match.id === matchId ? { ...match, status: "requested" } : match)),
@@ -802,7 +907,7 @@ export function TopicTimeApp() {
             <p className="eyeline">Chatroom a tempo</p>
             <h1 id="login-title">Il feed scorre. Qui si parla.</h1>
             <p>
-              Entra in stanze brevi con un tema chiaro, persone reali e monete da riscattare
+              Entra in stanze brevi con un tema chiaro, persone reali e Star da riscattare
               ogni giorno. Se hai Premium, puoi aprire chatroom tue.
             </p>
           </div>
@@ -810,7 +915,7 @@ export function TopicTimeApp() {
           <div className="login-side">
             <div className="flow-steps" aria-label="Flusso applicativo">
               <span>1. Accedi con email</span>
-              <span>2. Riscatta monete gratis</span>
+              <span>2. Riscatta Star gratis</span>
               <span>3. Scegli una stanza aperta</span>
               <span>4. Apri stanze con Premium</span>
             </div>
@@ -821,14 +926,24 @@ export function TopicTimeApp() {
 
             <AuthPanel
               variant="gate"
+              onAuthChange={(user) => {
+                if (user) {
+                  setAccessState("authenticated");
+                }
+              }}
               onDemoAccess={() => {
                 setAccessState("demo");
                 seedRandomLobby(true);
               }}
-              onAuthChange={(user) => {
-                setAccessState(user ? "authenticated" : "guest");
-              }}
             />
+
+            <a
+              className="secondary-action"
+              href="/?demo=1"
+            >
+              <Sparkles size={18} />
+              Entra e prova ora
+            </a>
           </div>
         </section>
       </main>
@@ -857,7 +972,11 @@ export function TopicTimeApp() {
           </a>
           <a href="#wallet">
             <Coins size={18} />
-            Monete
+            Star
+          </a>
+          <a href="#community-hub">
+            <MessageCircle size={18} />
+            Community
           </a>
           <a href="#profile">
             <Sparkles size={18} />
@@ -923,7 +1042,7 @@ export function TopicTimeApp() {
 
         <section className="status-strip" aria-live="polite">
           <span>{syncMessage}</span>
-          <b>{profile.coins} monete nel wallet</b>
+          <b>{profile.coins} Star nel wallet</b>
         </section>
 
         <section className="main-grid">
@@ -939,7 +1058,7 @@ export function TopicTimeApp() {
                     <Sparkles size={15} />
                     Nuova lobby
                   </button>
-                  <div className="coin-chip" aria-label={`${profile.coins} monete disponibili`}>
+                  <div className="coin-chip" aria-label={`${profile.coins} Star disponibili`}>
                     <Image src="/brand/coin-icon.png" alt="" width={22} height={18} />
                     {profile.coins}
                   </div>
@@ -992,7 +1111,7 @@ export function TopicTimeApp() {
                           </span>
                           <span>
                             <Coins size={15} />
-                            {room.cost === 0 ? "gratis" : `${room.cost} monete`}
+                            {room.cost === 0 ? "gratis" : `${room.cost} Star`}
                           </span>
                           {room.isPremium ? <span>Premium</span> : null}
                           {room.muted ? <span>Silenziata</span> : null}
@@ -1162,7 +1281,7 @@ export function TopicTimeApp() {
               {!premiumActive ? (
                 <p className="creator-lock">
                   Vuoi aprire nuove chatroom? Attiva Premium. Nel frattempo puoi entrare nelle
-                  stanze aperte, conoscere persone e usare il wallet.
+                  stanze aperte, conoscere persone e usare le Star.
                 </p>
               ) : null}
 
@@ -1243,7 +1362,7 @@ export function TopicTimeApp() {
                   />
                 </label>
                 <label>
-                  Costo monete
+                  Costo Star
                   <input
                     disabled={!premiumActive}
                     min={0}
@@ -1273,6 +1392,112 @@ export function TopicTimeApp() {
                   {premiumActive ? "Pubblica stanza" : "Sblocca con Premium"}
                 </button>
               </form>
+            </section>
+
+            <section className="panel community-panel" id="community-hub" aria-labelledby="community-title">
+              <div className="panel-heading">
+                <div>
+                  <p className="eyeline">Annual report flow</p>
+                  <h2 id="community-title">Community Hub</h2>
+                </div>
+                <Megaphone size={24} />
+              </div>
+
+              <p className="community-lede">
+                Forum interno, feedback aperti e aggiornamenti trasparenti: qui gli utenti aiutano
+                TopicTime a crescere e ricevono Star quando contribuiscono.
+              </p>
+
+              <div className="impact-grid" aria-label="Flusso Freemium TopicTime">
+                <span>
+                  <strong>{dailyRoomLimit}</strong>
+                  chat evento al giorno
+                </span>
+                <span>
+                  <strong>{starMultiplier}</strong>
+                  streak Star
+                </span>
+                <span>
+                  <strong>{feedbackVotes}</strong>
+                  voti community
+                </span>
+              </div>
+
+              <div className="roadmap-list" aria-label="Aggiornamenti trasparenti">
+                {roadmapUpdates.map((update) => (
+                  <article className="roadmap-row" key={update.id}>
+                    <span>{update.status}</span>
+                    <div>
+                      <strong>{update.title}</strong>
+                      <p>{update.body}</p>
+                      <small>{update.metric}</small>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <form className="community-form" onSubmit={handleSubmitCommunityFeedback}>
+                <label>
+                  Area
+                  <select
+                    value={feedbackDraft.category}
+                    onChange={(event) =>
+                      setFeedbackDraft((current) => ({
+                        ...current,
+                        category: event.target.value as CommunityFeedback["category"],
+                      }))
+                    }
+                  >
+                    <option value="Esperienza">Esperienza</option>
+                    <option value="Sicurezza">Sicurezza</option>
+                    <option value="Star">Star</option>
+                    <option value="Topic">Topic</option>
+                  </select>
+                </label>
+                <label>
+                  Titolo proposta
+                  <input
+                    value={feedbackDraft.title}
+                    onChange={(event) =>
+                      setFeedbackDraft((current) => ({ ...current, title: event.target.value }))
+                    }
+                    placeholder="Es. stanza anti-solitudine del venerdi"
+                  />
+                </label>
+                <label className="wide-field">
+                  Perche aiuterebbe la community?
+                  <textarea
+                    value={feedbackDraft.body}
+                    onChange={(event) =>
+                      setFeedbackDraft((current) => ({ ...current, body: event.target.value }))
+                    }
+                    placeholder="Spiega il problema, il beneficio e il tipo di utente che aiuterebbe"
+                  />
+                </label>
+                <button className="primary-action wide-field" type="submit">
+                  <Plus size={18} />
+                  Pubblica feedback +5 Star
+                </button>
+              </form>
+
+              <div className="idea-board" aria-label="Feedback della community">
+                {communityIdeas.map((idea) => (
+                  <article className="idea-row" key={idea.id}>
+                    <div>
+                      <span>{idea.category}</span>
+                      <strong>{idea.title}</strong>
+                      <p>{idea.body}</p>
+                      <small>
+                        {idea.author} - {idea.createdAt} - {feedbackStatusLabel(idea.status)}
+                      </small>
+                    </div>
+                    <button className="mini-action" type="button" onClick={() => voteCommunityIdea(idea.id)}>
+                      <Sparkles size={14} />
+                      {idea.votes}
+                    </button>
+                  </article>
+                ))}
+              </div>
             </section>
           </div>
 
@@ -1350,7 +1575,7 @@ export function TopicTimeApp() {
                 </span>
                 <div>
                   <p className="eyeline">Wallet</p>
-                  <h2 id="wallet-title">Monete e vantaggi</h2>
+                  <h2 id="wallet-title">Star e vantaggi</h2>
                 </div>
               </div>
 
@@ -1371,7 +1596,7 @@ export function TopicTimeApp() {
                 </button>
                 <button type="button" onClick={activatePremium}>
                   <Crown size={16} />
-                  Premium 99 monete
+                  Premium 99 Star
                 </button>
               </div>
 
@@ -1379,7 +1604,7 @@ export function TopicTimeApp() {
                 {coinPacks.map((pack) => (
                   <button key={pack.label} type="button" onClick={() => buyCoinPack(pack.amount, pack.label)}>
                     <span>{pack.label}</span>
-                    <b>+{pack.amount} monete</b>
+                    <b>+{pack.amount} Star</b>
                     <small>{pack.price} euro</small>
                   </button>
                 ))}
@@ -1396,7 +1621,7 @@ export function TopicTimeApp() {
                     <Palette size={16} />
                     <span>{option.label}</span>
                     <small>
-                      {option.owned ? "acquistato" : option.premiumOnly ? "Premium" : `${option.price} monete`}
+                      {option.owned ? "acquistato" : option.premiumOnly ? "Premium" : `${option.price} Star`}
                     </small>
                   </button>
                 ))}

@@ -133,6 +133,18 @@ create table if not exists public.moderation_reports (
   resolved_at timestamptz
 );
 
+create table if not exists public.community_feedback (
+  id uuid primary key default gen_random_uuid(),
+  author_id uuid references public.profiles(id) on delete set null,
+  title text not null check (char_length(title) between 3 and 120),
+  body text not null check (char_length(body) between 10 and 700),
+  category text not null check (category in ('Esperienza', 'Sicurezza', 'Star', 'Topic')),
+  status text not null default 'nuovo' check (status in ('nuovo', 'in revisione', 'pianificato', 'rilasciato')),
+  votes integer not null default 1 check (votes >= 0),
+  reward integer not null default 5 check (reward >= 0),
+  created_at timestamptz not null default now()
+);
+
 create index if not exists profiles_username_idx on public.profiles (username);
 create index if not exists profile_themes_profile_idx on public.profile_themes (profile_id);
 create index if not exists rooms_status_starts_idx on public.rooms (status, starts_at);
@@ -144,6 +156,8 @@ create index if not exists friendships_addressee_idx on public.friendships (addr
 create index if not exists wallet_profile_created_idx on public.wallet_transactions (profile_id, created_at desc);
 create index if not exists notifications_profile_unread_idx on public.notifications (profile_id, created_at desc) where read_at is null;
 create index if not exists moderation_status_idx on public.moderation_reports (status, created_at desc);
+create index if not exists community_feedback_status_idx on public.community_feedback (status, created_at desc);
+create index if not exists community_feedback_votes_idx on public.community_feedback (votes desc, created_at desc);
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -668,6 +682,62 @@ begin
 end;
 $$;
 
+create or replace function public.submit_community_feedback(
+  feedback_title text,
+  feedback_body text,
+  feedback_category text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_user_id uuid := (select auth.uid());
+  created_feedback_id uuid;
+  star_reward integer := 5;
+begin
+  if current_user_id is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  if feedback_category not in ('Esperienza', 'Sicurezza', 'Star', 'Topic') then
+    raise exception 'feedback_category_not_allowed';
+  end if;
+
+  insert into public.community_feedback (author_id, title, body, category, reward)
+  values (
+    current_user_id,
+    feedback_title,
+    feedback_body,
+    feedback_category,
+    star_reward
+  )
+  returning id into created_feedback_id;
+
+  update public.profiles
+  set coins = coins + star_reward
+  where id = current_user_id;
+
+  insert into public.wallet_transactions (profile_id, amount, reason, metadata)
+  values (
+    current_user_id,
+    star_reward,
+    'community_feedback',
+    jsonb_build_object('feedback_id', created_feedback_id)
+  );
+
+  insert into public.notifications (profile_id, title, body)
+  values (
+    current_user_id,
+    '+' || star_reward || ' Star feedback',
+    'La tua proposta e entrata nel Community Hub.'
+  );
+
+  return jsonb_build_object('id', created_feedback_id, 'reward', star_reward);
+end;
+$$;
+
 create or replace function public.create_room(
   topic_slug text,
   room_title text,
@@ -867,11 +937,11 @@ left join public.room_members on room_members.room_id = rooms.id
 group by rooms.id, topics.slug, topics.name, profiles.display_name;
 
 grant usage on schema public to anon, authenticated;
-grant select on public.themes, public.topics, public.rooms, public.room_cards to anon, authenticated;
+grant select on public.themes, public.topics, public.rooms, public.room_cards, public.community_feedback to anon, authenticated;
 grant select on public.profiles, public.profile_themes, public.room_members, public.messages, public.message_reactions to authenticated;
 grant select on public.friendships, public.wallet_transactions, public.notifications, public.moderation_reports to authenticated;
 grant update on public.profiles, public.rooms, public.room_members, public.notifications, public.friendships to authenticated;
-grant insert on public.messages, public.message_reactions, public.friendships, public.moderation_reports to authenticated;
+grant insert on public.messages, public.message_reactions, public.friendships, public.moderation_reports, public.community_feedback to authenticated;
 grant delete on public.message_reactions to authenticated;
 grant execute on function public.join_room(text) to authenticated;
 grant execute on function public.post_message(text, text) to authenticated;
@@ -882,6 +952,7 @@ grant execute on function public.claim_free_gift() to authenticated;
 grant execute on function public.purchase_theme(text) to authenticated;
 grant execute on function public.activate_premium_plan() to authenticated;
 grant execute on function public.save_profile(text, text, text, text[], text) to authenticated;
+grant execute on function public.submit_community_feedback(text, text, text) to authenticated;
 grant execute on function public.create_room(text, text, text, text, timestamptz, integer, integer, integer) to authenticated;
 grant execute on function public.ensure_random_rooms(integer) to anon, authenticated;
 
@@ -897,6 +968,7 @@ alter table public.friendships enable row level security;
 alter table public.wallet_transactions enable row level security;
 alter table public.notifications enable row level security;
 alter table public.moderation_reports enable row level security;
+alter table public.community_feedback enable row level security;
 
 drop policy if exists "themes are readable" on public.themes;
 create policy "themes are readable"
@@ -1055,6 +1127,18 @@ on public.moderation_reports for select
 to authenticated
 using ((select auth.uid()) = reporter_id);
 
+drop policy if exists "community feedback is readable" on public.community_feedback;
+create policy "community feedback is readable"
+on public.community_feedback for select
+to anon, authenticated
+using (true);
+
+drop policy if exists "users create own community feedback" on public.community_feedback;
+create policy "users create own community feedback"
+on public.community_feedback for insert
+to authenticated
+with check ((select auth.uid()) = author_id);
+
 insert into public.themes (id, label, description, price, premium_only, palette)
 values
   ('zen', 'Digital Zen', 'Tema base chiaro e leggibile.', 0, false, '{"accent":"#e96550"}'),
@@ -1164,9 +1248,5 @@ set title = excluded.title,
     coin_cost = excluded.coin_cost,
     is_premium = excluded.is_premium,
     status = excluded.status;
-
-delete from public.rooms
-where host_id is null
-  and slug in ('analogica', 'viaggio-lento', 'letture-notte', 'coop');
 
 select public.ensure_random_rooms(6);

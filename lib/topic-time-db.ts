@@ -1,8 +1,10 @@
 import type { User } from "@supabase/supabase-js";
-import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
+import { getAuthRedirectUrl, getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
 import {
   topicIcons,
   type ChatMessage,
+  type CommunityFeedback,
+  type FeedbackDraft,
   type ThemeId,
   type ThemeOption,
   type TopicCategory,
@@ -21,6 +23,7 @@ export type DbActionResult<T = unknown> = {
 
 type TopicTimeSnapshot = {
   authenticated: boolean;
+  communityFeedbacks: CommunityFeedback[];
   messagesByRoom: Record<string, ChatMessage[]>;
   notifications: NotificationItem[];
   profile: UserProfile | null;
@@ -75,6 +78,18 @@ type MessageRow = {
   profile_id: string;
   room_id: string;
   profiles: { display_name: string } | { display_name: string }[] | null;
+};
+
+type CommunityFeedbackRow = {
+  body: string;
+  category: CommunityFeedback["category"];
+  created_at: string;
+  id: string;
+  profiles: { display_name: string } | { display_name: string }[] | null;
+  reward: number;
+  status: CommunityFeedback["status"];
+  title: string;
+  votes: number;
 };
 
 const themeIds: ThemeId[] = ["zen", "sunset", "pastel", "midnight", "arcade"];
@@ -217,6 +232,7 @@ export async function loadTopicTimeSnapshot(): Promise<DbActionResult<TopicTimeS
     ownedThemesResponse,
     transactionsResponse,
     notificationsResponse,
+    communityFeedbackResponse,
   ] = await Promise.all([
     client.from("room_cards").select("*").order("starts_at", { ascending: true }).limit(24),
     client.from("themes").select("id,label,description,price,premium_only").order("price"),
@@ -249,6 +265,11 @@ export async function loadTopicTimeSnapshot(): Promise<DbActionResult<TopicTimeS
           .order("created_at", { ascending: false })
           .limit(8)
       : Promise.resolve({ data: [], error: null }),
+    client
+      .from("community_feedback")
+      .select("id,title,body,category,status,votes,reward,created_at,profiles(display_name)")
+      .order("created_at", { ascending: false })
+      .limit(8),
   ]);
 
   const firstError =
@@ -321,6 +342,22 @@ export async function loadTopicTimeSnapshot(): Promise<DbActionResult<TopicTimeS
   return {
     data: {
       authenticated: Boolean(userId),
+      communityFeedbacks: communityFeedbackResponse.error
+        ? []
+        : ((communityFeedbackResponse.data ?? []) as CommunityFeedbackRow[]).map((row) => ({
+            author: readProfileName(row.profiles),
+            body: row.body,
+            category: row.category,
+            createdAt: new Date(row.created_at).toLocaleDateString("it-IT", {
+              day: "2-digit",
+              month: "short",
+            }),
+            id: row.id,
+            reward: row.reward,
+            status: row.status,
+            title: row.title,
+            votes: row.votes,
+          })),
       messagesByRoom,
       notifications: (notificationsResponse.data ?? []).map((row) => ({
         id: row.id as string,
@@ -394,30 +431,69 @@ export async function getAuthState() {
   };
 }
 
+export function onAuthStateChange(callback: (user: User | null) => void) {
+  const client = getSupabaseClient();
+
+  if (!client) {
+    return () => {};
+  }
+
+  const {
+    data: { subscription },
+  } = client.auth.onAuthStateChange((_event, session) => {
+    callback(session?.user ?? null);
+  });
+
+  return () => subscription.unsubscribe();
+}
+
+export function getAuthRedirectError() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const searchParams = new URLSearchParams(window.location.search);
+  const error = hashParams.get("error") ?? searchParams.get("error");
+  const description = hashParams.get("error_description") ?? searchParams.get("error_description");
+
+  if (!error && !description) {
+    return null;
+  }
+
+  return description ?? error ?? "Il link di accesso non e stato accettato.";
+}
+
 export async function sendMagicLink(email: string): Promise<DbActionResult> {
   const client = getSupabaseClient();
 
   if (!client) {
-    return demoResult("Accesso email non attivo in questa prova: puoi entrare subito senza account.");
+    return demoResult(
+      "Supabase non e configurato in questo deploy: aggiungi NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY su Vercel, poi fai redeploy.",
+    );
   }
 
   const { error } = await client.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: window.location.origin,
+      emailRedirectTo: getAuthRedirectUrl(),
+      shouldCreateUser: true,
     },
   });
 
   if (error) {
     return {
-      message: error.message,
+      message:
+        error.message.includes("redirect")
+          ? "Supabase non accetta il dominio di ritorno. Aggiungi l'URL dell'app in Authentication > URL Configuration."
+          : error.message,
       mode: "remote",
       ok: false,
     };
   }
 
   return {
-    message: "Link sicuro inviato. Controlla la casella email.",
+    message: "Link sicuro inviato. Apri la casella email e clicca il link per entrare.",
     mode: "remote",
     ok: true,
   };
@@ -576,7 +652,7 @@ export async function claimStreakInDatabase(): Promise<DbActionResult<{ reward: 
 
   return {
     data: data as { reward: number; streak: number },
-    message: "Streak aggiornato: monete aggiunte al wallet.",
+    message: "Streak aggiornato: Star aggiunte al wallet.",
     mode: "remote",
     ok: true,
   };
@@ -601,7 +677,7 @@ export async function claimFreeGiftInDatabase(): Promise<DbActionResult<{ reward
 
   return {
     data: data as { reward: number },
-    message: "Regalo gratuito riscattato nel wallet.",
+    message: "Regalo gratuito riscattato in Star.",
     mode: "remote",
     ok: true,
   };
@@ -685,6 +761,47 @@ export async function saveProfileInDatabase(profile: UserProfile): Promise<DbAct
 
   return {
     message: "Profilo aggiornato.",
+    mode: "remote",
+    ok: true,
+  };
+}
+
+export async function submitCommunityFeedbackInDatabase(
+  feedback: FeedbackDraft,
+): Promise<DbActionResult<{ id: string; reward: number }>> {
+  const auth = await requireUser();
+
+  if ("ok" in auth) {
+    return {
+      ...auth,
+      data: { id: `local-feedback-${Date.now()}`, reward: 5 },
+      message: "Feedback pubblicato nel Community Hub di prova.",
+    } as DbActionResult<{ id: string; reward: number }>;
+  }
+
+  const { data, error } = await auth.client.rpc("submit_community_feedback", {
+    feedback_body: feedback.body,
+    feedback_category: feedback.category,
+    feedback_title: feedback.title,
+  });
+
+  if (error) {
+    return {
+      data: { id: `local-feedback-${Date.now()}`, reward: 5 },
+      message: "Feedback pubblicato in questa sessione. Aggiorna lo schema Supabase per salvarlo online.",
+      mode: "demo",
+      ok: true,
+    };
+  }
+
+  const result = data as { id?: string; reward?: number };
+
+  return {
+    data: {
+      id: result.id ?? `feedback-${Date.now()}`,
+      reward: result.reward ?? 5,
+    },
+    message: "Feedback pubblicato: +5 Star per il contributo alla community.",
     mode: "remote",
     ok: true,
   };

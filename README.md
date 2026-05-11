@@ -1,6 +1,6 @@
 # TopicTime Applicativo
 
-Applicativo Next.js per TopicTime: login, stanze tematiche a tempo generate con topic casuali, chatroom complete, utenti in stanza, wallet con monete, regalo gratuito giornaliero, temi acquistabili, Premium, profilo per interessi, match post-room, notifiche e moderazione.
+Applicativo Next.js per TopicTime: login, stanze tematiche a tempo generate con topic casuali, chatroom complete, utenti in stanza, wallet con valuta Star, regalo gratuito giornaliero, temi acquistabili, Premium, profilo per interessi, match post-room, Community Hub, notifiche e moderazione.
 
 ## Avvio locale
 
@@ -14,20 +14,22 @@ Compila `.env.local` con le chiavi pubbliche del progetto Supabase:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
-Se le variabili non sono presenti, l'app resta esplorabile in modalita prova con dati locali.
+Se usi una chiave legacy puoi ancora impostare `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Se le variabili non sono presenti, l'app resta esplorabile in modalita prova con dati locali.
 
 ## Funzionalita
 
 - Login iniziale con link sicuro via email e ingresso di prova locale.
 - Stanze generate all'avvio con topic casuali, utenti gia presenti, capienza, costo e stato leggibile.
-- Ingresso stanza con RPC Supabase, addebito monete e fallback locale.
+- Ingresso stanza con RPC Supabase, addebito Star e fallback locale.
 - Chat per stanza con salvataggio messaggi, utenti online, typing indicator, risposte rapide, citazioni, reazioni, mute, invito e uscita stanza.
-- Wallet con regalo gratuito giornaliero, streak, ricompense annuncio, pacchetti monete e movimenti recenti.
-- Piano Premium acquistabile con monete; solo utenti Premium possono creare chatroom.
-- Temi acquistabili con monete e blocco Premium.
+- Wallet con regalo gratuito giornaliero, streak, ricompense annuncio, pacchetti Star e movimenti recenti.
+- Piano Premium acquistabile con Star; solo utenti Premium possono creare chatroom.
+- Temi acquistabili con Star e blocco Premium.
+- Community Hub ispirato all'annual report: forum interno, feedback aperti, roadmap trasparente e reward +5 Star per proposta.
 - Profilo modificabile con bio, username, interessi e tema attivo.
 - Match post-conversazione, notifiche e pannello moderazione.
 - Snapshot iniziale da Supabase: stanze, profilo, temi, movimenti, notifiche e messaggi recenti.
@@ -37,10 +39,10 @@ Se le variabili non sono presenti, l'app resta esplorabile in modalita prova con
 Esegui il contenuto di `supabase/schema.sql` nell'SQL editor di Supabase. Lo schema include:
 
 - tabelle `profiles`, `themes`, `topics`, `rooms`, `room_members`, `messages`
-- tabelle social e prodotto: `friendships`, `wallet_transactions`, `notifications`, `moderation_reports`
+- tabelle social e prodotto: `friendships`, `wallet_transactions`, `notifications`, `moderation_reports`, `community_feedback`
 - view `room_cards` per la dashboard delle stanze
 - trigger su `auth.users` per creare automaticamente profilo e tema base
-- funzioni RPC `ensure_random_rooms`, `join_room`, `leave_room`, `post_message`, `toggle_message_reaction`, `claim_free_gift`, `claim_daily_streak`, `activate_premium_plan`, `purchase_theme`, `save_profile`, `create_room`
+- funzioni RPC `ensure_random_rooms`, `join_room`, `leave_room`, `post_message`, `toggle_message_reaction`, `claim_free_gift`, `claim_daily_streak`, `activate_premium_plan`, `purchase_theme`, `save_profile`, `submit_community_feedback`, `create_room`
 - policy RLS e grant per `anon` e `authenticated`
 - seed iniziale per topic, temi e stanze di prova
 
@@ -52,8 +54,12 @@ Imposta su Vercel queste environment variables per Production, Preview e Develop
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+NEXT_PUBLIC_SITE_URL
 ```
+
+In Supabase apri `Authentication > URL Configuration` e imposta il dominio dell'app in `Site URL`.
+Aggiungi anche gli stessi domini in `Redirect URLs`, per esempio `http://localhost:3000/**`, l'URL production Vercel e, se usi preview, il pattern Vercel del team.
 
 Il comando di build e:
 

@@ -110,6 +110,26 @@ export type ModerationReport = {
   status: "open" | "reviewing" | "closed";
 };
 
+export type CommunityFeedback = {
+  author: string;
+  body: string;
+  category: "Esperienza" | "Sicurezza" | "Star" | "Topic";
+  createdAt: string;
+  id: string;
+  reward: number;
+  status: "nuovo" | "in revisione" | "pianificato" | "rilasciato";
+  title: string;
+  votes: number;
+};
+
+export type RoadmapUpdate = {
+  body: string;
+  id: string;
+  metric: string;
+  status: "Live" | "In sviluppo" | "Prossimo";
+  title: string;
+};
+
 export type RoomDraft = {
   coinCost: number;
   durationMinutes: number;
@@ -118,6 +138,12 @@ export type RoomDraft = {
   prompt: string;
   title: string;
   topic: Exclude<TopicCategory, "Tutti">;
+};
+
+export type FeedbackDraft = {
+  body: string;
+  category: CommunityFeedback["category"];
+  title: string;
 };
 
 export const categories: TopicCategory[] = [
@@ -526,6 +552,66 @@ export const moderationReports: ModerationReport[] = [
   },
 ];
 
+export const communityFeedbacks: CommunityFeedback[] = [
+  {
+    author: "Giulia",
+    body: "Una stanza settimanale per chi vuole conoscere persone nuove senza pressione da dating app.",
+    category: "Esperienza",
+    createdAt: "Oggi",
+    id: "cf-rituali",
+    reward: 5,
+    status: "pianificato",
+    title: "Rituali anti-solitudine",
+    votes: 128,
+  },
+  {
+    author: "Nico",
+    body: "Mostrare prima interessi e modo di parlare, poi il profilo completo solo dopo la chat.",
+    category: "Sicurezza",
+    createdAt: "Ieri",
+    id: "cf-profilo",
+    reward: 5,
+    status: "in revisione",
+    title: "Profilo visibile dopo la conversazione",
+    votes: 94,
+  },
+  {
+    author: "Marta",
+    body: "Premiare chi propone topic chiari e resta in tema con Star extra a fine stanza.",
+    category: "Star",
+    createdAt: "2 giorni fa",
+    id: "cf-star",
+    reward: 5,
+    status: "nuovo",
+    title: "Star per conversazioni di qualita",
+    votes: 71,
+  },
+];
+
+export const roadmapUpdates: RoadmapUpdate[] = [
+  {
+    body: "Forum interno, feedback aperti e aggiornamenti trasparenti per far crescere TopicTime con la community.",
+    id: "ru-community",
+    metric: "Community-led growth",
+    status: "Live",
+    title: "Community Hub",
+  },
+  {
+    body: "Streak, regalo giornaliero, annunci premiati e vantaggi Premium seguono il modello Freemium del report.",
+    id: "ru-star",
+    metric: "Star economy",
+    status: "In sviluppo",
+    title: "Economia Star",
+  },
+  {
+    body: "Chatroom a tempo con gruppi ristretti, topic chiari e contatti sbloccabili dopo conversazioni reali.",
+    id: "ru-impact",
+    metric: "Impatto sociale",
+    status: "Prossimo",
+    title: "Metriche di benessere",
+  },
+];
+
 export const emptyRoomDraft: RoomDraft = {
   coinCost: 0,
   durationMinutes: 20,
@@ -534,6 +620,12 @@ export const emptyRoomDraft: RoomDraft = {
   prompt: "",
   title: "",
   topic: "Cinema",
+};
+
+export const emptyFeedbackDraft: FeedbackDraft = {
+  body: "",
+  category: "Esperienza",
+  title: "",
 };
 
 const hostNames = ["Marta", "Nico", "Ari", "Sam", "Dani", "Vale", "Lia", "Omar", "Viola", "Rami"];

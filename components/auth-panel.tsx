@@ -3,7 +3,13 @@
 import { FormEvent, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { LogIn, LogOut, Mail, ShieldCheck } from "lucide-react";
-import { getAuthState, sendMagicLink, signOut } from "@/lib/topic-time-db";
+import {
+  getAuthRedirectError,
+  getAuthState,
+  onAuthStateChange,
+  sendMagicLink,
+  signOut,
+} from "@/lib/topic-time-db";
 
 type AuthStatus = "idle" | "sent" | "demo" | "error" | "online";
 
@@ -16,11 +22,33 @@ type AuthPanelProps = {
 export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: AuthPanelProps) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<AuthStatus>("idle");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("Ti mandiamo un link sicuro: niente password da ricordare.");
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     let mounted = true;
+
+    const redirectError = getAuthRedirectError();
+
+    if (redirectError) {
+      setStatus("error");
+      setMessage(`Accesso non completato: ${redirectError}`);
+    }
+
+    const unsubscribe = onAuthStateChange((nextUser) => {
+      if (!mounted) {
+        return;
+      }
+
+      setUser(nextUser);
+      onAuthChange?.(nextUser);
+
+      if (nextUser) {
+        setStatus("online");
+        setMessage(`Sei dentro come ${nextUser.email ?? "utente TopicTime"}.`);
+      }
+    });
 
     getAuthState().then((authState) => {
       if (!mounted) {
@@ -32,7 +60,9 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
 
       if (!authState.configured) {
         setStatus("demo");
-        setMessage("Puoi provare subito TopicTime: stanze, monete e profilo restano su questo dispositivo.");
+        setMessage(
+          "Supabase non e configurato in questo deploy: aggiungi le variabili su Vercel e fai redeploy. Intanto puoi entrare in prova.",
+        );
         return;
       }
 
@@ -44,6 +74,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
 
     return () => {
       mounted = false;
+      unsubscribe();
     };
   }, []);
 
@@ -56,10 +87,19 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
       return;
     }
 
+    setIsSubmitting(true);
+    setStatus("idle");
+    setMessage("Invio del link di accesso in corso...");
+
     const result = await sendMagicLink(email);
 
+    setIsSubmitting(false);
     setStatus(result.ok ? (result.mode === "demo" ? "demo" : "sent") : "error");
     setMessage(result.message);
+
+    if (result.ok && result.mode === "demo") {
+      onDemoAccess?.();
+    }
   }
 
   async function handleSignOut() {
@@ -102,9 +142,9 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
               onChange={(event) => setEmail(event.target.value)}
             />
           </div>
-          <button className="primary-action" type="submit">
+          <button className="primary-action" type="submit" disabled={isSubmitting}>
             <LogIn size={18} />
-            Ricevi link sicuro
+            {isSubmitting ? "Invio in corso..." : "Ricevi link sicuro"}
           </button>
         </form>
       )}
