@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TopicTime App",
+  title: "TopicTime - Chatroom a tempo",
   description:
-    "Applicativo TopicTime per chatroom tematiche, profili post-conversazione e wallet interno.",
+    "TopicTime e un social a stanze tematiche con login, Star, Premium, community e Radar conversazionale.",
 };
 
 export default function RootLayout({

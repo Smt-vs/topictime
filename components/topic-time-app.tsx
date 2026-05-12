@@ -2,6 +2,7 @@
 
 import { FormEvent, startTransition, useDeferredValue, useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   Bell,
   Check,
@@ -953,35 +954,35 @@ export function TopicTimeApp() {
   return (
     <main className="topic-app" data-theme={profile.selectedThemeId}>
       <aside className="sidebar" aria-label="Navigazione TopicTime">
-        <a className="brand-lockup" href="#rooms" aria-label="TopicTime applicativo">
+        <Link className="brand-lockup" href="/" aria-label="TopicTime home">
           <Image src="/brand/logo-mark.png" alt="" width={52} height={52} priority />
           <span>
             <strong>TopicTime</strong>
             <small>stanze che partono davvero</small>
           </span>
-        </a>
+        </Link>
 
         <nav className="side-nav">
-          <a href="#rooms" className="is-active">
+          <Link href="/rooms" className="is-active">
             <Hash size={18} />
             Stanze
-          </a>
-          <a href="#community">
+          </Link>
+          <Link href="/profile#matches">
             <Users size={18} />
             Persone
-          </a>
-          <a href="#wallet">
+          </Link>
+          <Link href="/wallet">
             <Coins size={18} />
             Star
-          </a>
-          <a href="#community-hub">
+          </Link>
+          <Link href="/community">
             <MessageCircle size={18} />
             Community
-          </a>
-          <a href="#profile">
-            <Sparkles size={18} />
-            Profilo
-          </a>
+          </Link>
+          <Link href="/radar">
+            <Wand2 size={18} />
+            Radar
+          </Link>
         </nav>
 
         <div className="sidebar-profile">

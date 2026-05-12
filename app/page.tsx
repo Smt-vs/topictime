@@ -1,5 +1,5 @@
-import { TopicTimeApp } from "@/components/topic-time-app";
+import { LandingPage } from "@/components/topic-time-pages";
 
 export default function Home() {
-  return <TopicTimeApp />;
+  return <LandingPage />;
 }
