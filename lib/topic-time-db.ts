@@ -20,6 +20,7 @@ export type DbActionResult<T = unknown> = {
     | "auth_disabled"
     | "configuration"
     | "email_not_confirmed"
+    | "email_delivery_blocked"
     | "invalid_credentials"
     | "invalid_email"
     | "network"
@@ -510,6 +511,29 @@ function authErrorResult(message: string): DbActionResult {
   const errorMessage = message.toLowerCase();
 
   if (
+    errorMessage.includes("email address not authorized") ||
+    (errorMessage.includes("email") && errorMessage.includes("not authorized"))
+  ) {
+    return {
+      code: "email_delivery_blocked",
+      message:
+        "Questa email non puo ancora ricevere messaggi dal progetto. Per la beta usa un indirizzo autorizzato o configura un SMTP personalizzato su Supabase.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  if (errorMessage.includes("smtp") || errorMessage.includes("sending confirmation") || errorMessage.includes("send email")) {
+    return {
+      code: "email_delivery_blocked",
+      message:
+        "L'account e stato creato, ma l'invio della mail non e partito. Controlla la configurazione SMTP di Supabase e riprova.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  if (
     errorMessage.includes("email") &&
     (errorMessage.includes("disabled") || errorMessage.includes("not enabled") || errorMessage.includes("provider"))
   ) {
@@ -533,7 +557,7 @@ function authErrorResult(message: string): DbActionResult {
   if (errorMessage.includes("already registered") || errorMessage.includes("already exists")) {
     return {
       code: "already_registered",
-      message: "Questo indirizzo ha gia un account. Passa ad Accedi e usa la password che hai scelto.",
+      message: "Questa email sembra gia registrata. Vai su Accedi e usa la password che hai scelto.",
       mode: "remote",
       ok: false,
     };
@@ -587,7 +611,8 @@ function authErrorResult(message: string): DbActionResult {
   if (errorMessage.includes("rate") || errorMessage.includes("security purposes")) {
     return {
       code: "rate_limited",
-      message: "Troppi tentativi ravvicinati. Aspetta circa un minuto, poi riprova.",
+      message:
+        "Sono partite troppe email in poco tempo. Aspetta qualche minuto; se stai testando spesso, configura un SMTP personalizzato.",
       mode: "remote",
       ok: false,
     };
@@ -650,8 +675,19 @@ export async function signUpWithPassword(email: string, password: string): Promi
       };
     }
 
+    if (data.user && (data.user.identities?.length ?? 0) === 0) {
+      return {
+        code: "already_registered",
+        message:
+          "Questa email sembra gia registrata. Per sicurezza Supabase non invia una nuova conferma: prova ad accedere con la password.",
+        mode: "remote",
+        ok: false,
+      };
+    }
+
     return {
-      message: "Ci siamo quasi: ti ho mandato una email di verifica. Aprila, conferma l'account e poi torna qui per accedere.",
+      message:
+        "Account creato. Se la mail non arriva entro un minuto, controlla spam/promozioni oppure usa il pulsante per reinviarla.",
       mode: "remote",
       ok: true,
     };

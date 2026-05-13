@@ -63,6 +63,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
   const [message, setMessage] = useState(initialMessage);
   const [user, setUser] = useState<User | null>(null);
   const [canResendVerification, setCanResendVerification] = useState(false);
+  const [showEmailHelp, setShowEmailHelp] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -72,6 +73,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
       setStatus("error");
       setMessage("Non sono riuscito a chiudere la verifica email: " + redirectError);
       setCanResendVerification(true);
+      setShowEmailHelp(true);
     }
 
     const unsubscribe = onAuthStateChange((nextUser) => {
@@ -85,6 +87,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
       if (nextUser) {
         setStatus("online");
         setCanResendVerification(false);
+        setShowEmailHelp(false);
         setMessage("Sei dentro come " + userLabel(nextUser) + ". Sto preparando le tue stanze.");
       }
     });
@@ -108,6 +111,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
       if (authState.user) {
         setStatus("online");
         setCanResendVerification(false);
+        setShowEmailHelp(false);
         setMessage("Sei dentro come " + userLabel(authState.user) + ". Sto preparando le tue stanze.");
         return;
       }
@@ -136,6 +140,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
 
     setStatus("online");
     setCanResendVerification(false);
+    setShowEmailHelp(false);
     setMessage(successMessage);
     return true;
   }
@@ -175,7 +180,17 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
       if (!result.ok) {
         setStatus("error");
         setMessage(result.message);
-        setCanResendVerification(result.code === "email_not_confirmed");
+        setCanResendVerification(
+          result.code === "email_not_confirmed" ||
+            result.code === "email_delivery_blocked" ||
+            result.code === "rate_limited",
+        );
+        setShowEmailHelp(
+          result.code === "email_not_confirmed" ||
+            result.code === "email_delivery_blocked" ||
+            result.code === "already_registered" ||
+            result.code === "rate_limited",
+        );
 
         if (result.code === "already_registered") {
           setMode("sign-in");
@@ -202,6 +217,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
       if (!hasSession) {
         setStatus("sent");
         setCanResendVerification(true);
+        setShowEmailHelp(true);
         setMessage(result.message);
       }
     } catch (error) {
@@ -230,6 +246,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
       const result = await resendVerificationEmail(email);
 
       setStatus(result.ok ? "sent" : "error");
+      setShowEmailHelp(true);
       setMessage(result.message);
     } catch (error) {
       setStatus("error");
@@ -249,6 +266,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
     setUser(null);
     onAuthChange?.(null);
     setStatus(result.ok ? "idle" : "error");
+    setShowEmailHelp(false);
     setMessage(result.ok ? "Sei uscito. Quando vuoi, ti aspettiamo di nuovo qui." : result.message);
   }
 
@@ -262,6 +280,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
     setMode(nextMode);
     setStatus("idle");
     setCanResendVerification(false);
+    setShowEmailHelp(false);
     setMessage(modeCopy[nextMode].message);
   }
 
@@ -348,6 +367,15 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
               <RefreshCw size={18} />
               Reinvia email di verifica
             </button>
+          ) : null}
+
+          {showEmailHelp ? (
+            <div className="auth-delivery-note" aria-label="Aiuto email di verifica">
+              <strong>Non trovi la mail?</strong>
+              <span>Controlla spam, promozioni e l'indirizzo scritto nel form.</span>
+              <span>Se hai gia usato questa email, prova direttamente Accedi.</span>
+              <span>In beta privata l'invio puo essere limitato: usa una mail autorizzata o configura l'SMTP del progetto.</span>
+            </div>
           ) : null}
         </>
       )}

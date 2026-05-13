@@ -62,6 +62,8 @@ NEXT_PUBLIC_SITE_URL
 In Supabase apri `Authentication > URL Configuration` e imposta il dominio dell'app in `Site URL`.
 Aggiungi anche gli stessi domini in `Redirect URLs`, includendo il ritorno alla app: `http://localhost:3000/**`, `http://localhost:3000/rooms`, l'URL production Vercel con `/**` e `/rooms`, e se usi preview il pattern Vercel del team. In `Authentication > Providers > Email` abilita Email/Password e lascia attiva la conferma email per verificare i nuovi account.
 
+Per test reali con utenti esterni configura anche `Authentication > SMTP Settings`: il mailer standard di Supabase e pensato per sviluppo, ha limiti stretti e puo non consegnare email a indirizzi non autorizzati nel progetto. Se la registrazione va a buon fine ma non arriva la verifica, controlla spam/promozioni, i rate limit Auth e l'SMTP personalizzato.
+
 Il comando di build e:
 
 ```bash

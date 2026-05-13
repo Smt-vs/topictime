@@ -1050,6 +1050,24 @@ textarea:disabled {
   font-weight: 800;
 }
 
+.auth-delivery-note {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid rgba(233, 101, 80, 0.24);
+  border-radius: var(--radius);
+  background: rgba(255, 246, 222, 0.76);
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 780;
+  line-height: 1.38;
+}
+
+.auth-delivery-note strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
 .auth-helper {
   display: grid;
   gap: 6px;
