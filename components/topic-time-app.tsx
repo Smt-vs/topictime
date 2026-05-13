@@ -983,6 +983,10 @@ export function TopicTimeApp() {
             <Wand2 size={18} />
             Radar
           </Link>
+          <Link href="/support">
+            <ShieldAlert size={18} />
+            Supporto
+          </Link>
         </nav>
 
         <div className="sidebar-profile">

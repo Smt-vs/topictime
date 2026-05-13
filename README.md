@@ -26,10 +26,11 @@ Se usi una chiave legacy puoi ancora impostare `NEXT_PUBLIC_SUPABASE_ANON_KEY`. 
 - Stanze generate all'avvio con topic casuali, utenti gia presenti, capienza, costo e stato leggibile.
 - Ingresso stanza con RPC Supabase, addebito Star e fallback locale.
 - Chat per stanza con salvataggio messaggi, utenti online, typing indicator, risposte rapide, citazioni, reazioni, mute, invito e uscita stanza.
-- Wallet con regalo gratuito giornaliero, streak, ricompense annuncio, pacchetti Star e movimenti recenti.
+- Wallet con regalo gratuito giornaliero, missioni Star giornaliere, streak, ricompense annuncio, pacchetti Star e movimenti recenti.
 - Piano Premium acquistabile con Star; solo utenti Premium possono creare chatroom.
 - Temi acquistabili con Star e blocco Premium.
 - Community Hub ispirato all'annual report: forum interno, feedback aperti, roadmap trasparente e reward +5 Star per proposta.
+- Supporto integrato per bug, sicurezza, FAQ e idee: il form salva ticket anche quando l'utente non riesce ancora ad accedere.
 - Profilo modificabile con bio, username, interessi e tema attivo.
 - Match post-conversazione, notifiche e pannello moderazione.
 - Snapshot iniziale da Supabase: stanze, profilo, temi, movimenti, notifiche e messaggi recenti.
@@ -39,7 +40,7 @@ Se usi una chiave legacy puoi ancora impostare `NEXT_PUBLIC_SUPABASE_ANON_KEY`. 
 Esegui il contenuto di `supabase/schema.sql` nell'SQL editor di Supabase. Lo schema include:
 
 - tabelle `profiles`, `themes`, `topics`, `rooms`, `room_members`, `messages`
-- tabelle social e prodotto: `friendships`, `wallet_transactions`, `notifications`, `moderation_reports`, `community_feedback`
+- tabelle social e prodotto: `friendships`, `wallet_transactions`, `notifications`, `moderation_reports`, `community_feedback`, `support_tickets`
 - view `room_cards` per la dashboard delle stanze
 - trigger su `auth.users` per creare automaticamente profilo e tema base
 - funzioni RPC `ensure_random_rooms`, `join_room`, `leave_room`, `post_message`, `toggle_message_reaction`, `claim_free_gift`, `claim_daily_streak`, `activate_premium_plan`, `purchase_theme`, `save_profile`, `submit_community_feedback`, `create_room`

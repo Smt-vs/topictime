@@ -130,6 +130,29 @@ export type RoadmapUpdate = {
   title: string;
 };
 
+export type DailyMission = {
+  action: string;
+  id: string;
+  progress: number;
+  reward: number;
+  target: number;
+  title: string;
+};
+
+export type PlanFeature = {
+  free: string;
+  label: string;
+  premium: string;
+};
+
+export type SupportTopic = {
+  body: string;
+  category: "Bug" | "Sicurezza" | "FAQ" | "Idea";
+  id: string;
+  responseTime: string;
+  title: string;
+};
+
 export type RoomDraft = {
   coinCost: number;
   durationMinutes: number;
@@ -609,6 +632,95 @@ export const roadmapUpdates: RoadmapUpdate[] = [
     metric: "Impatto sociale",
     status: "Prossimo",
     title: "Metriche di benessere",
+  },
+];
+
+export const dailyMissions: DailyMission[] = [
+  {
+    action: "Riscatta il regalo gratuito dal wallet.",
+    id: "mission-gift",
+    progress: 0,
+    reward: 25,
+    target: 1,
+    title: "Regalo di benvenuto",
+  },
+  {
+    action: "Entra in una stanza e resta fino al timer finale.",
+    id: "mission-room",
+    progress: 2,
+    reward: 12,
+    target: 5,
+    title: "5 stanze free al giorno",
+  },
+  {
+    action: "Guarda due annunci per sbloccare una stanza extra.",
+    id: "mission-ads",
+    progress: 1,
+    reward: 20,
+    target: 2,
+    title: "Ad pass inclusivo",
+  },
+  {
+    action: "Pubblica un feedback utile nel Community Hub.",
+    id: "mission-feedback",
+    progress: 0,
+    reward: 5,
+    target: 1,
+    title: "Aiuta la roadmap",
+  },
+];
+
+export const planFeatures: PlanFeature[] = [
+  {
+    free: "5 stanze al giorno",
+    label: "Partecipazione eventi",
+    premium: "Illimitata",
+  },
+  {
+    free: "3 stanze create al giorno con ads",
+    label: "Creazione chatroom",
+    premium: "Illimitata e prioritaria",
+  },
+  {
+    free: "Catalogo base",
+    label: "Temi e avatar",
+    premium: "Temi, avatar e skin esclusive",
+  },
+  {
+    free: "Standard",
+    label: "Streak Star",
+    premium: "Moltiplicatore 2x",
+  },
+];
+
+export const supportTopics: SupportTopic[] = [
+  {
+    body: "Segnala messaggi fuori tema, profili sospetti o comportamenti che rendono una stanza poco sicura.",
+    category: "Sicurezza",
+    id: "support-safety",
+    responseTime: "Priorita alta",
+    title: "Moderazione e sicurezza",
+  },
+  {
+    body: "Raccogliamo bug su login, Star, timer, creazione stanze e problemi di sincronizzazione con Supabase.",
+    category: "Bug",
+    id: "support-bug",
+    responseTime: "Entro 48h",
+    title: "Bug report prodotto",
+  },
+  {
+    body: "Domande su limiti free, Premium, annunci, temi, avatar e sblocco profili a fine chatroom.",
+    category: "FAQ",
+    id: "support-faq",
+    responseTime: "Risposta rapida",
+    title: "Aiuto sull'esperienza",
+  },
+  {
+    body: "Proponi topic, rituali anti-solitudine, eventi VIP o nuove meccaniche community-driven.",
+    category: "Idea",
+    id: "support-idea",
+    responseTime: "+5 Star se utile",
+    title: "Proposte community",
   },
 ];
 

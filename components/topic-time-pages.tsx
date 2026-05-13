@@ -21,15 +21,18 @@ import {
 import {
   communityFeedbacks,
   companionMatches,
+  dailyMissions,
   initialProfile,
   initialTransactions,
   notifications,
+  planFeatures,
   roadmapUpdates,
   rooms,
   themeOptions,
 } from "@/data/topic-time";
+import { SupportCenter } from "@/components/support-center";
 
-type PageKey = "home" | "rooms" | "wallet" | "community" | "profile" | "radar";
+type PageKey = "home" | "rooms" | "wallet" | "community" | "profile" | "radar" | "support";
 
 const navItems: { href: string; icon: LucideIcon; id: PageKey; label: string }[] = [
   { href: "/", icon: Sparkles, id: "home", label: "Visione" },
@@ -38,6 +41,7 @@ const navItems: { href: string; icon: LucideIcon; id: PageKey; label: string }[]
   { href: "/community", icon: MessageCircle, id: "community", label: "Community" },
   { href: "/profile", icon: Users, id: "profile", label: "Profilo" },
   { href: "/radar", icon: Eye, id: "radar", label: "Radar" },
+  { href: "/support", icon: ShieldAlert, id: "support", label: "Supporto" },
 ];
 
 const radarSignals = [
@@ -187,6 +191,30 @@ export function WalletPage() {
         <article><Palette size={22} /><strong>{premiumThemes} temi premium</strong><p>Temi acquistabili con Star per rendere riconoscibile il proprio spazio.</p></article>
         <article><Gift size={22} /><strong>Regalo quotidiano</strong><p>Un gesto semplice che invita a tornare e provare una nuova stanza.</p></article>
       </section>
+      <section className="product-section mission-grid" aria-label="Missioni giornaliere TopicTime">
+        {dailyMissions.map((mission) => (
+          <article key={mission.id}>
+            <span>{mission.progress}/{mission.target}</span>
+            <strong>{mission.title}</strong>
+            <p>{mission.action}</p>
+            <small>+{mission.reward} Star</small>
+          </article>
+        ))}
+      </section>
+      <section className="product-section plan-table" aria-label="Confronto piano free e premium">
+        <div className="plan-table-head">
+          <span>Funzionalita</span>
+          <span>Free</span>
+          <span>Premium</span>
+        </div>
+        {planFeatures.map((feature) => (
+          <article key={feature.label}>
+            <strong>{feature.label}</strong>
+            <span>{feature.free}</span>
+            <span>{feature.premium}</span>
+          </article>
+        ))}
+      </section>
     </PageShell>
   );
 }
@@ -231,6 +259,19 @@ export function RadarPage() {
       </section>
       <section className="product-section signal-grid">{radarSignals.map(([label, metric, text]) => <article key={label}><span>{label}</span><strong>{metric}</strong><p>{text}</p></article>)}</section>
       <section className="product-section route-panel"><div><Clock size={22} /><strong>Room path</strong><p>Tre stanze suggerite, massimo un'ora, nessun feed infinito.</p></div>{rooms.slice(0, 3).map((room, index) => <article key={room.id}><span>{index + 1}</span><strong>{room.title}</strong><small>{room.compatibility}% compatibile - {room.mood}</small></article>)}</section>
+    </PageShell>
+  );
+}
+
+export function SupportPage() {
+  return (
+    <PageShell
+      current="support"
+      eyebrow="Supporto e fiducia"
+      title="Una chatroom funziona solo se le persone si sentono al sicuro."
+      text="Dai materiali startup emerge un punto chiave: moderazione, bug report e feedback devono essere parte del prodotto, non un canale esterno dimenticato."
+    >
+      <SupportCenter />
     </PageShell>
   );
 }

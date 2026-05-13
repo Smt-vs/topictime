@@ -145,6 +145,19 @@ create table if not exists public.community_feedback (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.support_tickets (
+  id uuid primary key default gen_random_uuid(),
+  author_id uuid references auth.users(id) on delete set null,
+  email text not null check (position('@' in email) > 1 and char_length(email) <= 180),
+  category text not null check (category in ('Bug', 'Sicurezza', 'FAQ', 'Idea')),
+  subject text not null check (char_length(subject) between 3 and 140),
+  body text not null check (char_length(body) between 12 and 1200),
+  status text not null default 'open' check (status in ('open', 'reviewing', 'closed')),
+  priority text not null default 'normal' check (priority in ('normal', 'high')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists profiles_username_idx on public.profiles (username);
 create index if not exists profile_themes_profile_idx on public.profile_themes (profile_id);
 create index if not exists rooms_status_starts_idx on public.rooms (status, starts_at);
@@ -158,6 +171,8 @@ create index if not exists notifications_profile_unread_idx on public.notificati
 create index if not exists moderation_status_idx on public.moderation_reports (status, created_at desc);
 create index if not exists community_feedback_status_idx on public.community_feedback (status, created_at desc);
 create index if not exists community_feedback_votes_idx on public.community_feedback (votes desc, created_at desc);
+create index if not exists support_tickets_author_idx on public.support_tickets (author_id, created_at desc);
+create index if not exists support_tickets_status_idx on public.support_tickets (status, created_at desc);
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -177,6 +192,11 @@ for each row execute function public.set_updated_at();
 drop trigger if exists rooms_set_updated_at on public.rooms;
 create trigger rooms_set_updated_at
 before update on public.rooms
+for each row execute function public.set_updated_at();
+
+drop trigger if exists support_tickets_set_updated_at on public.support_tickets;
+create trigger support_tickets_set_updated_at
+before update on public.support_tickets
 for each row execute function public.set_updated_at();
 
 create or replace function public.handle_new_user()
@@ -939,9 +959,10 @@ group by rooms.id, topics.slug, topics.name, profiles.display_name;
 grant usage on schema public to anon, authenticated;
 grant select on public.themes, public.topics, public.rooms, public.room_cards, public.community_feedback to anon, authenticated;
 grant select on public.profiles, public.profile_themes, public.room_members, public.messages, public.message_reactions to authenticated;
-grant select on public.friendships, public.wallet_transactions, public.notifications, public.moderation_reports to authenticated;
+grant select on public.friendships, public.wallet_transactions, public.notifications, public.moderation_reports, public.support_tickets to authenticated;
 grant update on public.profiles, public.rooms, public.room_members, public.notifications, public.friendships to authenticated;
 grant insert on public.messages, public.message_reactions, public.friendships, public.moderation_reports, public.community_feedback to authenticated;
+grant insert on public.support_tickets to anon, authenticated;
 grant delete on public.message_reactions to authenticated;
 grant execute on function public.join_room(text) to authenticated;
 grant execute on function public.post_message(text, text) to authenticated;
@@ -969,6 +990,7 @@ alter table public.wallet_transactions enable row level security;
 alter table public.notifications enable row level security;
 alter table public.moderation_reports enable row level security;
 alter table public.community_feedback enable row level security;
+alter table public.support_tickets enable row level security;
 
 drop policy if exists "themes are readable" on public.themes;
 create policy "themes are readable"
@@ -1138,6 +1160,18 @@ create policy "users create own community feedback"
 on public.community_feedback for insert
 to authenticated
 with check ((select auth.uid()) = author_id);
+
+drop policy if exists "anyone can create support tickets" on public.support_tickets;
+create policy "anyone can create support tickets"
+on public.support_tickets for insert
+to anon, authenticated
+with check (author_id is null or (select auth.uid()) = author_id);
+
+drop policy if exists "users read own support tickets" on public.support_tickets;
+create policy "users read own support tickets"
+on public.support_tickets for select
+to authenticated
+using ((select auth.uid()) = author_id);
 
 insert into public.themes (id, label, description, price, premium_only, palette)
 values
