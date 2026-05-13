@@ -193,6 +193,17 @@ p {
   line-height: 1.25;
 }
 
+.login-helper {
+  padding: 12px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.42);
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
 .sidebar {
   position: sticky;
   top: 0;
@@ -1003,6 +1014,28 @@ textarea:disabled {
   color: var(--ink-soft);
   font-size: 13px;
   font-weight: 800;
+}
+
+.auth-helper {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.4);
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.auth-helper span::before {
+  content: "ok";
+  margin-right: 6px;
+  color: var(--teal-deep);
+  font-family: "Courier New", monospace;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .auth-status {

@@ -15,6 +15,7 @@ import {
 } from "@/data/topic-time";
 
 export type DbActionResult<T = unknown> = {
+  code?: "auth_disabled" | "configuration" | "rate_limited" | "redirect";
   data?: T;
   message: string;
   mode: "demo" | "remote";
@@ -423,6 +424,15 @@ export async function getAuthState() {
     };
   }
 
+  const { data: sessionData } = await client.auth.getSession();
+
+  if (sessionData.session?.user) {
+    return {
+      configured: true,
+      user: sessionData.session.user,
+    };
+  }
+
   const { data } = await client.auth.getUser();
 
   return {
@@ -466,34 +476,70 @@ export function getAuthRedirectError() {
 
 export async function sendMagicLink(email: string): Promise<DbActionResult> {
   const client = getSupabaseClient();
+  const normalizedEmail = email.trim().toLowerCase();
+  const redirectUrl = getAuthRedirectUrl("/rooms");
 
   if (!client) {
-    return demoResult(
-      "Supabase non e configurato in questo deploy: aggiungi NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY su Vercel, poi fai redeploy.",
-    );
+    return {
+      code: "configuration",
+      message:
+        "Login email non disponibile in questo build: controlla le variabili Supabase su Vercel e fai un nuovo deploy. Puoi comunque entrare in prova con il pulsante dedicato.",
+      mode: "remote",
+      ok: false,
+    };
   }
 
   const { error } = await client.auth.signInWithOtp({
-    email,
+    email: normalizedEmail,
     options: {
-      emailRedirectTo: getAuthRedirectUrl(),
+      emailRedirectTo: redirectUrl,
       shouldCreateUser: true,
     },
   });
 
   if (error) {
+    const errorMessage = error.message.toLowerCase();
+
+    if (errorMessage.includes("redirect")) {
+      return {
+        code: "redirect",
+        message:
+          "Supabase non accetta il ritorno a " +
+          (redirectUrl ?? "questa URL") +
+          ". Aggiungilo in Authentication > URL Configuration > Redirect URLs.",
+        mode: "remote",
+        ok: false,
+      };
+    }
+
+    if (errorMessage.includes("email") && (errorMessage.includes("disabled") || errorMessage.includes("not enabled"))) {
+      return {
+        code: "auth_disabled",
+        message:
+          "Il provider Email non e attivo su Supabase. Apri Authentication > Providers > Email e abilita Email/OTP, poi riprova.",
+        mode: "remote",
+        ok: false,
+      };
+    }
+
+    if (errorMessage.includes("rate") || errorMessage.includes("security purposes")) {
+      return {
+        code: "rate_limited",
+        message: "Troppi tentativi ravvicinati. Aspetta circa un minuto, poi richiedi un nuovo link.",
+        mode: "remote",
+        ok: false,
+      };
+    }
+
     return {
-      message:
-        error.message.includes("redirect")
-          ? "Supabase non accetta il dominio di ritorno. Aggiungi l'URL dell'app in Authentication > URL Configuration."
-          : error.message,
+      message: error.message,
       mode: "remote",
       ok: false,
     };
   }
 
   return {
-    message: "Link sicuro inviato. Apri la casella email e clicca il link per entrare.",
+    message: "Link inviato. Apri l'email da questo dispositivo: dopo il click rientri direttamente nelle stanze.",
     mode: "remote",
     ok: true,
   };

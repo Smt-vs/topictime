@@ -1,5 +1,13 @@
 import { TopicTimeApp } from "@/components/topic-time-app";
 
-export default function RoomsPage() {
-  return <TopicTimeApp />;
+type RoomsPageProps = {
+  searchParams?: Promise<{
+    demo?: string;
+  }>;
+};
+
+export default async function RoomsPage({ searchParams }: RoomsPageProps) {
+  const params = await searchParams;
+
+  return <TopicTimeApp initialDemo={params?.demo === "1"} />;
 }

@@ -96,6 +96,7 @@ const quickReplies = [
 const messageReactions = ["+1", "<3", "!!"];
 
 type AccessState = "loading" | "guest" | "demo" | "authenticated";
+type SnapshotData = NonNullable<Awaited<ReturnType<typeof loadTopicTimeSnapshot>>["data"]>;
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -165,8 +166,8 @@ function feedbackStatusLabel(status: CommunityFeedback["status"]) {
   return "Rilasciata";
 }
 
-export function TopicTimeApp() {
-  const [accessState, setAccessState] = useState<AccessState>("loading");
+export function TopicTimeApp({ initialDemo = false }: { initialDemo?: boolean }) {
+  const [accessState, setAccessState] = useState<AccessState>(initialDemo ? "demo" : "loading");
   const [activeCategory, setActiveCategory] = useState<TopicCategory>("Tutti");
   const [roomsState, setRoomsState] = useState<TopicRoom[]>(rooms);
   const [selectedRoomId, setSelectedRoomId] = useState(rooms[0].id);
@@ -207,11 +208,66 @@ export function TopicTimeApp() {
     }
   }
 
+  function applySnapshotData(snapshotData: SnapshotData) {
+    if (snapshotData.rooms.length > 0) {
+      setRoomsState(snapshotData.rooms);
+      setSelectedRoomId((current) =>
+        snapshotData.rooms.some((room) => room.id === current)
+          ? current
+          : snapshotData.rooms[0]?.id ?? current,
+      );
+    } else {
+      seedRandomLobby();
+    }
+
+    if (snapshotData.profile) {
+      setProfile(snapshotData.profile);
+    }
+
+    if (snapshotData.themes.length > 0) {
+      setThemes(snapshotData.themes);
+    }
+
+    if (snapshotData.transactions.length > 0) {
+      setTransactions(snapshotData.transactions);
+    }
+
+    if (snapshotData.notifications.length > 0) {
+      setNoticeList(snapshotData.notifications);
+    }
+
+    if (snapshotData.communityFeedbacks.length > 0) {
+      setCommunityIdeas(snapshotData.communityFeedbacks);
+    }
+
+    if (Object.keys(snapshotData.messagesByRoom).length > 0) {
+      setMessagesByRoom((current) => ({
+        ...current,
+        ...snapshotData.messagesByRoom,
+      }));
+    }
+  }
+
+  async function refreshRemoteSession() {
+    const snapshot = await loadTopicTimeSnapshot();
+
+    setDatabaseOnline(snapshot.mode === "remote");
+    setSync(snapshot);
+
+    if (!snapshot.ok || !snapshot.data) {
+      return;
+    }
+
+    applySnapshotData(snapshot.data);
+    setAccessState(snapshot.data.authenticated ? "authenticated" : "guest");
+  }
+
   useEffect(() => {
     let mounted = true;
 
     const demoRequested =
-      typeof window !== "undefined" && new URLSearchParams(window.location.search).get("demo") === "1";
+      initialDemo ||
+      (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("demo") === "1");
 
     if (demoRequested) {
       setAccessState("demo");
@@ -235,46 +291,8 @@ export function TopicTimeApp() {
         return;
       }
 
-      const snapshotData = snapshot.data;
-      setAccessState(snapshotData.authenticated ? "authenticated" : "guest");
-
-      if (snapshotData.rooms.length > 0) {
-        setRoomsState(snapshotData.rooms);
-        setSelectedRoomId((current) =>
-          snapshotData.rooms.some((room) => room.id === current)
-            ? current
-            : snapshotData.rooms[0]?.id ?? current,
-        );
-      } else {
-        seedRandomLobby();
-      }
-
-      if (snapshotData.profile) {
-        setProfile(snapshotData.profile);
-      }
-
-      if (snapshotData.themes.length > 0) {
-        setThemes(snapshotData.themes);
-      }
-
-      if (snapshotData.transactions.length > 0) {
-        setTransactions(snapshotData.transactions);
-      }
-
-      if (snapshotData.notifications.length > 0) {
-        setNoticeList(snapshotData.notifications);
-      }
-
-      if (snapshotData.communityFeedbacks.length > 0) {
-        setCommunityIdeas(snapshotData.communityFeedbacks);
-      }
-
-      if (Object.keys(snapshotData.messagesByRoom).length > 0) {
-        setMessagesByRoom((current) => ({
-          ...current,
-          ...snapshotData.messagesByRoom,
-        }));
-      }
+      applySnapshotData(snapshot.data);
+      setAccessState(snapshot.data.authenticated ? "authenticated" : "guest");
     });
 
     return () => {
@@ -930,6 +948,7 @@ export function TopicTimeApp() {
               onAuthChange={(user) => {
                 if (user) {
                   setAccessState("authenticated");
+                  void refreshRemoteSession();
                 }
               }}
               onDemoAccess={() => {
@@ -938,13 +957,9 @@ export function TopicTimeApp() {
               }}
             />
 
-            <a
-              className="secondary-action"
-              href="/?demo=1"
-            >
-              <Sparkles size={18} />
-              Entra e prova ora
-            </a>
+            <p className="login-helper">
+              La prova e immediata ma locale. Per salvare profilo, Star e stanze online usa il link email.
+            </p>
           </div>
         </section>
       </main>
