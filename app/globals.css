@@ -1036,6 +1036,14 @@ textarea:disabled {
   gap: 9px;
 }
 
+.auth-form-note {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 750;
+}
+
 .auth-form label {
   color: var(--ink-soft);
   font-size: 13px;

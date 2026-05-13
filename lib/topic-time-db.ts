@@ -15,7 +15,17 @@ import {
 } from "@/data/topic-time";
 
 export type DbActionResult<T = unknown> = {
-  code?: "auth_disabled" | "configuration" | "email_not_confirmed" | "invalid_credentials" | "rate_limited" | "redirect" | "weak_password";
+  code?:
+    | "already_registered"
+    | "auth_disabled"
+    | "configuration"
+    | "email_not_confirmed"
+    | "invalid_credentials"
+    | "invalid_email"
+    | "network"
+    | "rate_limited"
+    | "redirect"
+    | "weak_password";
   data?: T;
   message: string;
   mode: "demo" | "remote";
@@ -478,10 +488,22 @@ function unavailableAuthResult(): DbActionResult {
   return {
     code: "configuration",
     message:
-      "Login non disponibile in questo build: controlla le variabili Supabase su Vercel e fai un nuovo deploy. Puoi comunque entrare in prova.",
+      "Non riesco ancora a collegare il login. Controlla le variabili Supabase su Vercel e fai redeploy; intanto puoi entrare in prova.",
     mode: "remote",
     ok: false,
   };
+}
+
+function readErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  return "Errore imprevisto durante l'accesso.";
 }
 
 function authErrorResult(message: string): DbActionResult {
@@ -493,7 +515,34 @@ function authErrorResult(message: string): DbActionResult {
   ) {
     return {
       code: "auth_disabled",
-      message: "Provider Email/Password non attivo su Supabase. Abilitalo in Authentication > Providers > Email.",
+      message: "Il login con email e password non e attivo su Supabase. Abilitalo in Authentication > Providers > Email.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  if (errorMessage.includes("signup") && (errorMessage.includes("disabled") || errorMessage.includes("not allowed"))) {
+    return {
+      code: "auth_disabled",
+      message: "La registrazione e disattivata su Supabase. Attiva le iscrizioni email prima di creare nuovi account.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  if (errorMessage.includes("already registered") || errorMessage.includes("already exists")) {
+    return {
+      code: "already_registered",
+      message: "Questo indirizzo ha gia un account. Passa ad Accedi e usa la password che hai scelto.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  if (errorMessage.includes("invalid email") || errorMessage.includes("unable to validate email")) {
+    return {
+      code: "invalid_email",
+      message: "Questa email non sembra valida. Controlla eventuali spazi o errori di battitura.",
       mode: "remote",
       ok: false,
     };
@@ -502,7 +551,7 @@ function authErrorResult(message: string): DbActionResult {
   if (errorMessage.includes("email") && errorMessage.includes("not confirmed")) {
     return {
       code: "email_not_confirmed",
-      message: "Email non verificata. Apri la mail di conferma TopicTime, poi accedi con password.",
+      message: "La tua email non e ancora verificata. Apri la mail di TopicTime, conferma l'account e poi torna qui ad accedere.",
       mode: "remote",
       ok: false,
     };
@@ -511,7 +560,7 @@ function authErrorResult(message: string): DbActionResult {
   if (errorMessage.includes("invalid login") || errorMessage.includes("invalid credentials")) {
     return {
       code: "invalid_credentials",
-      message: "Email o password non corretti. Se hai appena creato l'account, verifica prima l'email.",
+      message: "Email o password non tornano. Se hai appena creato l'account, prima devi confermare la mail.",
       mode: "remote",
       ok: false,
     };
@@ -520,7 +569,7 @@ function authErrorResult(message: string): DbActionResult {
   if (errorMessage.includes("password") && (errorMessage.includes("weak") || errorMessage.includes("least"))) {
     return {
       code: "weak_password",
-      message: "Scegli una password piu sicura: almeno 8 caratteri, meglio con lettere e numeri.",
+      message: "Scegli una password piu solida: almeno 8 caratteri, meglio con lettere e numeri.",
       mode: "remote",
       ok: false,
     };
@@ -529,7 +578,7 @@ function authErrorResult(message: string): DbActionResult {
   if (errorMessage.includes("redirect")) {
     return {
       code: "redirect",
-      message: "Supabase non accetta l'URL di conferma. Aggiungi /rooms nei Redirect URLs.",
+      message: "Supabase non accetta l'URL di conferma. Aggiungi il dominio dell'app e /rooms nei Redirect URLs.",
       mode: "remote",
       ok: false,
     };
@@ -545,10 +594,31 @@ function authErrorResult(message: string): DbActionResult {
   }
 
   return {
-    message,
+    message: message || "Non sono riuscito a completare l'accesso. Riprova tra poco.",
     mode: "remote",
     ok: false,
   };
+}
+
+function authExceptionResult(error: unknown): DbActionResult {
+  const message = readErrorMessage(error);
+  const errorMessage = message.toLowerCase();
+
+  if (
+    errorMessage.includes("fetch") ||
+    errorMessage.includes("network") ||
+    errorMessage.includes("failed to load") ||
+    errorMessage.includes("load failed")
+  ) {
+    return {
+      code: "network",
+      message: "Non riesco a parlare con Supabase in questo momento. Controlla connessione, URL del progetto e chiave pubblica, poi riprova.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  return authErrorResult(message);
 }
 
 export async function signUpWithPassword(email: string, password: string): Promise<DbActionResult> {
@@ -559,31 +629,35 @@ export async function signUpWithPassword(email: string, password: string): Promi
     return unavailableAuthResult();
   }
 
-  const { data, error } = await client.auth.signUp({
-    email: normalizedEmail,
-    password,
-    options: {
-      emailRedirectTo: getAuthRedirectUrl("/rooms"),
-    },
-  });
+  try {
+    const { data, error } = await client.auth.signUp({
+      email: normalizedEmail,
+      password,
+      options: {
+        emailRedirectTo: getAuthRedirectUrl("/rooms"),
+      },
+    });
 
-  if (error) {
-    return authErrorResult(error.message);
-  }
+    if (error) {
+      return authErrorResult(error.message);
+    }
 
-  if (data.session) {
+    if (data.session) {
+      return {
+        message: "Account creato: sto aprendo la tua lobby TopicTime.",
+        mode: "remote",
+        ok: true,
+      };
+    }
+
     return {
-      message: "Account creato e sessione attiva. Ti portiamo nelle stanze.",
+      message: "Ci siamo quasi: ti ho mandato una email di verifica. Aprila, conferma l'account e poi torna qui per accedere.",
       mode: "remote",
       ok: true,
     };
+  } catch (error) {
+    return authExceptionResult(error);
   }
-
-  return {
-    message: "Account creato. Controlla la tua email e conferma l'account, poi accedi con la password.",
-    mode: "remote",
-    ok: true,
-  };
 }
 
 export async function signInWithPassword(email: string, password: string): Promise<DbActionResult> {
@@ -594,20 +668,33 @@ export async function signInWithPassword(email: string, password: string): Promi
     return unavailableAuthResult();
   }
 
-  const { error } = await client.auth.signInWithPassword({
-    email: normalizedEmail,
-    password,
-  });
+  try {
+    const { data, error } = await client.auth.signInWithPassword({
+      email: normalizedEmail,
+      password,
+    });
 
-  if (error) {
-    return authErrorResult(error.message);
+    if (error) {
+      return authErrorResult(error.message);
+    }
+
+    if (!data.session) {
+      return {
+        code: "configuration",
+        message: "Le credenziali sono state accettate, ma la sessione non e stata salvata. Ricarica la pagina e riprova.",
+        mode: "remote",
+        ok: false,
+      };
+    }
+
+    return {
+      message: "Bentornato. Sto caricando profilo, Star e stanze.",
+      mode: "remote",
+      ok: true,
+    };
+  } catch (error) {
+    return authExceptionResult(error);
   }
-
-  return {
-    message: "Accesso riuscito. Stiamo caricando profilo, Star e stanze.",
-    mode: "remote",
-    ok: true,
-  };
 }
 
 export async function resendVerificationEmail(email: string): Promise<DbActionResult> {
@@ -618,23 +705,27 @@ export async function resendVerificationEmail(email: string): Promise<DbActionRe
     return unavailableAuthResult();
   }
 
-  const { error } = await client.auth.resend({
-    type: "signup",
-    email: normalizedEmail,
-    options: {
-      emailRedirectTo: getAuthRedirectUrl("/rooms"),
-    },
-  });
+  try {
+    const { error } = await client.auth.resend({
+      type: "signup",
+      email: normalizedEmail,
+      options: {
+        emailRedirectTo: getAuthRedirectUrl("/rooms"),
+      },
+    });
 
-  if (error) {
-    return authErrorResult(error.message);
+    if (error) {
+      return authErrorResult(error.message);
+    }
+
+    return {
+      message: "Email di verifica reinviata. Se non la vedi subito, controlla anche spam o promozioni.",
+      mode: "remote",
+      ok: true,
+    };
+  } catch (error) {
+    return authExceptionResult(error);
   }
-
-  return {
-    message: "Email di verifica reinviata. Controlla anche spam o promozioni.",
-    mode: "remote",
-    ok: true,
-  };
 }
 
 export async function signOut(): Promise<DbActionResult> {

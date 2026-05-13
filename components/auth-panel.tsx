@@ -13,7 +13,23 @@ import {
   signUpWithPassword,
 } from "@/lib/topic-time-db";
 
-const initialMessage = "Accedi con email e password. Se sei nuovo, crea l'account e conferma l'email prima di entrare.";
+const initialMessage =
+  "Entra nel tuo spazio TopicTime. Se e la prima volta, crea l'account: ti mandiamo una conferma via email.";
+
+const modeCopy = {
+  "sign-in": {
+    helper: "Usa l'email verificata e la password scelta in registrazione.",
+    loading: "Sto controllando email e password...",
+    message: "Accedi con la tua email verificata e la password.",
+    submit: "Entra",
+  },
+  "sign-up": {
+    helper: "Crea l'account in pochi secondi. Prima di entrare dovrai confermare la mail.",
+    loading: "Sto creando il tuo account...",
+    message: "Crea l'account: subito dopo ti inviamo la mail di conferma.",
+    submit: "Crea account",
+  },
+} satisfies Record<AuthMode, { helper: string; loading: string; message: string; submit: string }>;
 
 type AuthMode = "sign-in" | "sign-up";
 type AuthStatus = "idle" | "sent" | "demo" | "error" | "online";
@@ -30,6 +46,10 @@ function isValidEmail(value: string) {
 
 function isValidPassword(value: string) {
   return value.length >= 8;
+}
+
+function userLabel(nextUser: User) {
+  return nextUser.email ?? "il tuo account";
 }
 
 export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: AuthPanelProps) {
@@ -50,7 +70,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
 
     if (redirectError) {
       setStatus("error");
-      setMessage("Accesso non completato: " + redirectError);
+      setMessage("Non sono riuscito a chiudere la verifica email: " + redirectError);
       setCanResendVerification(true);
     }
 
@@ -65,7 +85,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
       if (nextUser) {
         setStatus("online");
         setCanResendVerification(false);
-        setMessage("Sessione attiva: sei dentro come " + (nextUser.email ?? "utente TopicTime") + ".");
+        setMessage("Sei dentro come " + userLabel(nextUser) + ". Sto preparando le tue stanze.");
       }
     });
 
@@ -80,7 +100,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
       if (!authState.configured) {
         setStatus("demo");
         setMessage(
-          "Login non collegato in questo build. Aggiungi le variabili Supabase su Vercel, fai redeploy oppure entra in prova.",
+          "Non vedo ancora Supabase collegato in questo deploy. Puoi entrare in prova, oppure controlla le variabili su Vercel e fai redeploy.",
         );
         return;
       }
@@ -88,7 +108,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
       if (authState.user) {
         setStatus("online");
         setCanResendVerification(false);
-        setMessage("Sessione attiva: sei dentro come " + (authState.user.email ?? "utente TopicTime") + ".");
+        setMessage("Sei dentro come " + userLabel(authState.user) + ". Sto preparando le tue stanze.");
         return;
       }
 
@@ -104,16 +124,32 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
     };
   }, []);
 
+  async function syncCurrentSession(successMessage: string) {
+    const authState = await getAuthState();
+
+    setUser(authState.user);
+    onAuthChange?.(authState.user);
+
+    if (!authState.user) {
+      return false;
+    }
+
+    setStatus("online");
+    setCanResendVerification(false);
+    setMessage(successMessage);
+    return true;
+  }
+
   function validateForm() {
     if (!isValidEmail(email)) {
       setStatus("error");
-      setMessage("Inserisci una email valida, ad esempio nome@email.it.");
+      setMessage("Mi serve una email valida, ad esempio nome@email.it.");
       return false;
     }
 
     if (!isValidPassword(password)) {
       setStatus("error");
-      setMessage("La password deve avere almeno 8 caratteri.");
+      setMessage("La password deve avere almeno 8 caratteri. Meglio se non e troppo semplice.");
       return false;
     }
 
@@ -123,43 +159,88 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!validateForm()) {
+    if (isSubmitting || !validateForm()) {
       return;
     }
 
     setIsSubmitting(true);
     setStatus("idle");
     setCanResendVerification(false);
-    setMessage(mode === "sign-in" ? "Controllo credenziali in corso..." : "Creazione account in corso...");
+    setMessage(modeCopy[mode].loading);
 
-    const result =
-      mode === "sign-in" ? await signInWithPassword(email, password) : await signUpWithPassword(email, password);
+    try {
+      const result =
+        mode === "sign-in" ? await signInWithPassword(email, password) : await signUpWithPassword(email, password);
 
-    setIsSubmitting(false);
-    setStatus(result.ok ? "sent" : "error");
-    setMessage(result.message);
-    setCanResendVerification(result.code === "email_not_confirmed" || (result.ok && mode === "sign-up"));
+      if (!result.ok) {
+        setStatus("error");
+        setMessage(result.message);
+        setCanResendVerification(result.code === "email_not_confirmed");
 
-    if (result.ok && mode === "sign-in") {
+        if (result.code === "already_registered") {
+          setMode("sign-in");
+        }
+
+        return;
+      }
+
+      if (mode === "sign-in") {
+        const hasSession = await syncCurrentSession("Bentornato. Sto caricando profilo, Star e stanze.");
+        setPassword("");
+
+        if (!hasSession) {
+          setStatus("error");
+          setMessage("Supabase ha accettato l'accesso, ma il browser non ha salvato la sessione. Ricarica la pagina e riprova.");
+        }
+
+        return;
+      }
+
+      const hasSession = await syncCurrentSession("Account creato. Sto aprendo la tua lobby TopicTime.");
       setPassword("");
+
+      if (!hasSession) {
+        setStatus("sent");
+        setCanResendVerification(true);
+        setMessage(result.message);
+      }
+    } catch (error) {
+      setStatus("error");
+      setMessage(
+        error instanceof Error
+          ? "Non sono riuscito a completare l'operazione: " + error.message
+          : "Non sono riuscito a completare l'operazione. Riprova tra poco.",
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   async function handleResendVerification() {
     if (!isValidEmail(email)) {
       setStatus("error");
-      setMessage("Scrivi l'email dell'account per reinviare la verifica.");
+      setMessage("Scrivi l'email dell'account e te la rimando subito.");
       return;
     }
 
     setIsSubmitting(true);
-    setMessage("Reinvio email di verifica...");
+    setMessage("Sto reinviando la mail di verifica...");
 
-    const result = await resendVerificationEmail(email);
+    try {
+      const result = await resendVerificationEmail(email);
 
-    setIsSubmitting(false);
-    setStatus(result.ok ? "sent" : "error");
-    setMessage(result.message);
+      setStatus(result.ok ? "sent" : "error");
+      setMessage(result.message);
+    } catch (error) {
+      setStatus("error");
+      setMessage(
+        error instanceof Error
+          ? "Non sono riuscito a reinviare la verifica: " + error.message
+          : "Non sono riuscito a reinviare la verifica. Riprova tra poco.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   async function handleSignOut() {
@@ -168,12 +249,12 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
     setUser(null);
     onAuthChange?.(null);
     setStatus(result.ok ? "idle" : "error");
-    setMessage(result.message);
+    setMessage(result.ok ? "Sei uscito. Quando vuoi, ti aspettiamo di nuovo qui." : result.message);
   }
 
   function handleDemoAccess() {
     setStatus("demo");
-    setMessage("Modalita prova attiva: puoi esplorare le stanze senza creare un account.");
+    setMessage("Modalita prova attiva: puoi esplorare TopicTime, ma profilo e Star restano solo su questo dispositivo.");
     onDemoAccess?.();
   }
 
@@ -181,12 +262,10 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
     setMode(nextMode);
     setStatus("idle");
     setCanResendVerification(false);
-    setMessage(
-      nextMode === "sign-in"
-        ? "Accedi con email e password dopo aver verificato l'account."
-        : "Crea l'account: ti inviamo una email di verifica prima del primo accesso.",
-    );
+    setMessage(modeCopy[nextMode].message);
   }
+
+  const currentCopy = modeCopy[mode];
 
   return (
     <section className="auth-panel" aria-labelledby="auth-title">
@@ -195,8 +274,8 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
           <ShieldCheck size={18} />
         </span>
         <div>
-          <p className="eyeline">Accesso verificato</p>
-          <h2 id="auth-title">{variant === "gate" ? "Entra in TopicTime" : "Account"}</h2>
+          <p className="eyeline">Account TopicTime</p>
+          <h2 id="auth-title">{variant === "gate" ? "Entra nelle stanze" : "Il tuo accesso"}</h2>
         </div>
       </div>
 
@@ -210,6 +289,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
           <div className="auth-mode-switch" role="tablist" aria-label="Modalita accesso">
             <button
               type="button"
+              aria-selected={mode === "sign-in"}
               className={mode === "sign-in" ? "is-selected" : undefined}
               onClick={() => switchMode("sign-in")}
             >
@@ -217,14 +297,17 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
             </button>
             <button
               type="button"
+              aria-selected={mode === "sign-up"}
               className={mode === "sign-up" ? "is-selected" : undefined}
               onClick={() => switchMode("sign-up")}
             >
-              Crea account
+              Registrati
             </button>
           </div>
 
           <form className="auth-form" onSubmit={handleSubmit}>
+            <p className="auth-form-note">{currentCopy.helper}</p>
+
             <label htmlFor={emailId}>Email</label>
             <div className="input-row">
               <Mail size={18} />
@@ -256,37 +339,37 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
 
             <button className="primary-action" type="submit" disabled={isSubmitting}>
               {mode === "sign-in" ? <LogIn size={18} /> : <UserPlus size={18} />}
-              {isSubmitting ? "Attendi..." : mode === "sign-in" ? "Accedi" : "Crea e verifica"}
+              {isSubmitting ? "Un attimo..." : currentCopy.submit}
             </button>
           </form>
 
           {canResendVerification ? (
             <button className="secondary-action" type="button" onClick={handleResendVerification} disabled={isSubmitting}>
               <RefreshCw size={18} />
-              Reinvia verifica email
+              Reinvia email di verifica
             </button>
           ) : null}
         </>
       )}
 
+      <p className={"auth-status " + status} aria-live="polite">
+        {message}
+      </p>
+
       {onDemoAccess && !user ? (
         <button className="secondary-action" type="button" onClick={handleDemoAccess}>
           <ShieldCheck size={18} />
-          Entra e prova ora
+          Prova senza account
         </button>
       ) : null}
 
       {!user ? (
         <div className="auth-helper" aria-label="Come funziona il login TopicTime">
-          <span>Prima crei account con password.</span>
-          <span>Confermi l'email da Supabase.</span>
-          <span>Poi accedi e salvi Star, profilo e stanze.</span>
+          <span>Registrati con email e password.</span>
+          <span>Conferma la mail che ricevi.</span>
+          <span>Accedi e ritrovi profilo, Star e stanze.</span>
         </div>
       ) : null}
-
-      <p className={"auth-status " + status} aria-live="polite">
-        {message}
-      </p>
     </section>
   );
 }
