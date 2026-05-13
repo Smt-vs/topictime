@@ -933,10 +933,10 @@ export function TopicTimeApp({ initialDemo = false }: { initialDemo?: boolean })
 
           <div className="login-side">
             <div className="flow-steps" aria-label="Flusso applicativo">
-              <span>1. Accedi con email</span>
-              <span>2. Riscatta Star gratis</span>
-              <span>3. Scegli una stanza aperta</span>
-              <span>4. Apri stanze con Premium</span>
+              <span>1. Crea account con password</span>
+              <span>2. Verifica email e accedi</span>
+              <span>3. Riscatta Star gratis</span>
+              <span>4. Entra o crea stanze Premium</span>
             </div>
 
             {accessState === "loading" ? (
@@ -958,7 +958,7 @@ export function TopicTimeApp({ initialDemo = false }: { initialDemo?: boolean })
             />
 
             <p className="login-helper">
-              La prova e immediata ma locale. Per salvare profilo, Star e stanze online usa il link email.
+              La prova e immediata ma locale. Per salvare profilo, Star e stanze online crea un account verificato.
             </p>
           </div>
         </section>

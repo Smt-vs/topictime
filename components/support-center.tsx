@@ -122,7 +122,7 @@ export function SupportCenter() {
           <input
             value={draft.subject}
             onChange={(event) => setDraft((current) => ({ ...current, subject: event.target.value }))}
-            placeholder="Es. non ricevo il magic link"
+            placeholder="Es. non ricevo l'email di verifica"
           />
         </label>
 

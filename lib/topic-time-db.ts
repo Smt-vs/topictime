@@ -15,7 +15,7 @@ import {
 } from "@/data/topic-time";
 
 export type DbActionResult<T = unknown> = {
-  code?: "auth_disabled" | "configuration" | "rate_limited" | "redirect";
+  code?: "auth_disabled" | "configuration" | "email_not_confirmed" | "invalid_credentials" | "rate_limited" | "redirect" | "weak_password";
   data?: T;
   message: string;
   mode: "demo" | "remote";
@@ -471,75 +471,167 @@ export function getAuthRedirectError() {
     return null;
   }
 
-  return description ?? error ?? "Il link di accesso non e stato accettato.";
+  return description ?? error ?? "La verifica email non e stata completata.";
 }
 
-export async function sendMagicLink(email: string): Promise<DbActionResult> {
-  const client = getSupabaseClient();
-  const normalizedEmail = email.trim().toLowerCase();
-  const redirectUrl = getAuthRedirectUrl("/rooms");
+function unavailableAuthResult(): DbActionResult {
+  return {
+    code: "configuration",
+    message:
+      "Login non disponibile in questo build: controlla le variabili Supabase su Vercel e fai un nuovo deploy. Puoi comunque entrare in prova.",
+    mode: "remote",
+    ok: false,
+  };
+}
 
-  if (!client) {
+function authErrorResult(message: string): DbActionResult {
+  const errorMessage = message.toLowerCase();
+
+  if (
+    errorMessage.includes("email") &&
+    (errorMessage.includes("disabled") || errorMessage.includes("not enabled") || errorMessage.includes("provider"))
+  ) {
     return {
-      code: "configuration",
-      message:
-        "Login email non disponibile in questo build: controlla le variabili Supabase su Vercel e fai un nuovo deploy. Puoi comunque entrare in prova con il pulsante dedicato.",
+      code: "auth_disabled",
+      message: "Provider Email/Password non attivo su Supabase. Abilitalo in Authentication > Providers > Email.",
       mode: "remote",
       ok: false,
     };
   }
 
-  const { error } = await client.auth.signInWithOtp({
-    email: normalizedEmail,
-    options: {
-      emailRedirectTo: redirectUrl,
-      shouldCreateUser: true,
-    },
-  });
-
-  if (error) {
-    const errorMessage = error.message.toLowerCase();
-
-    if (errorMessage.includes("redirect")) {
-      return {
-        code: "redirect",
-        message:
-          "Supabase non accetta il ritorno a " +
-          (redirectUrl ?? "questa URL") +
-          ". Aggiungilo in Authentication > URL Configuration > Redirect URLs.",
-        mode: "remote",
-        ok: false,
-      };
-    }
-
-    if (errorMessage.includes("email") && (errorMessage.includes("disabled") || errorMessage.includes("not enabled"))) {
-      return {
-        code: "auth_disabled",
-        message:
-          "Il provider Email non e attivo su Supabase. Apri Authentication > Providers > Email e abilita Email/OTP, poi riprova.",
-        mode: "remote",
-        ok: false,
-      };
-    }
-
-    if (errorMessage.includes("rate") || errorMessage.includes("security purposes")) {
-      return {
-        code: "rate_limited",
-        message: "Troppi tentativi ravvicinati. Aspetta circa un minuto, poi richiedi un nuovo link.",
-        mode: "remote",
-        ok: false,
-      };
-    }
-
+  if (errorMessage.includes("email") && errorMessage.includes("not confirmed")) {
     return {
-      message: error.message,
+      code: "email_not_confirmed",
+      message: "Email non verificata. Apri la mail di conferma TopicTime, poi accedi con password.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  if (errorMessage.includes("invalid login") || errorMessage.includes("invalid credentials")) {
+    return {
+      code: "invalid_credentials",
+      message: "Email o password non corretti. Se hai appena creato l'account, verifica prima l'email.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  if (errorMessage.includes("password") && (errorMessage.includes("weak") || errorMessage.includes("least"))) {
+    return {
+      code: "weak_password",
+      message: "Scegli una password piu sicura: almeno 8 caratteri, meglio con lettere e numeri.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  if (errorMessage.includes("redirect")) {
+    return {
+      code: "redirect",
+      message: "Supabase non accetta l'URL di conferma. Aggiungi /rooms nei Redirect URLs.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  if (errorMessage.includes("rate") || errorMessage.includes("security purposes")) {
+    return {
+      code: "rate_limited",
+      message: "Troppi tentativi ravvicinati. Aspetta circa un minuto, poi riprova.",
       mode: "remote",
       ok: false,
     };
   }
 
   return {
-    message: "Link inviato. Apri l'email da questo dispositivo: dopo il click rientri direttamente nelle stanze.",
+    message,
+    mode: "remote",
+    ok: false,
+  };
+}
+
+export async function signUpWithPassword(email: string, password: string): Promise<DbActionResult> {
+  const client = getSupabaseClient();
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (!client) {
+    return unavailableAuthResult();
+  }
+
+  const { data, error } = await client.auth.signUp({
+    email: normalizedEmail,
+    password,
+    options: {
+      emailRedirectTo: getAuthRedirectUrl("/rooms"),
+    },
+  });
+
+  if (error) {
+    return authErrorResult(error.message);
+  }
+
+  if (data.session) {
+    return {
+      message: "Account creato e sessione attiva. Ti portiamo nelle stanze.",
+      mode: "remote",
+      ok: true,
+    };
+  }
+
+  return {
+    message: "Account creato. Controlla la tua email e conferma l'account, poi accedi con la password.",
+    mode: "remote",
+    ok: true,
+  };
+}
+
+export async function signInWithPassword(email: string, password: string): Promise<DbActionResult> {
+  const client = getSupabaseClient();
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (!client) {
+    return unavailableAuthResult();
+  }
+
+  const { error } = await client.auth.signInWithPassword({
+    email: normalizedEmail,
+    password,
+  });
+
+  if (error) {
+    return authErrorResult(error.message);
+  }
+
+  return {
+    message: "Accesso riuscito. Stiamo caricando profilo, Star e stanze.",
+    mode: "remote",
+    ok: true,
+  };
+}
+
+export async function resendVerificationEmail(email: string): Promise<DbActionResult> {
+  const client = getSupabaseClient();
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (!client) {
+    return unavailableAuthResult();
+  }
+
+  const { error } = await client.auth.resend({
+    type: "signup",
+    email: normalizedEmail,
+    options: {
+      emailRedirectTo: getAuthRedirectUrl("/rooms"),
+    },
+  });
+
+  if (error) {
+    return authErrorResult(error.message);
+  }
+
+  return {
+    message: "Email di verifica reinviata. Controlla anche spam o promozioni.",
     mode: "remote",
     ok: true,
   };

@@ -22,7 +22,7 @@ Se usi una chiave legacy puoi ancora impostare `NEXT_PUBLIC_SUPABASE_ANON_KEY`. 
 
 ## Funzionalita
 
-- Login iniziale con link sicuro via email e ingresso di prova locale.
+- Login con email e password, verifica email Supabase e ingresso di prova locale.
 - Stanze generate all'avvio con topic casuali, utenti gia presenti, capienza, costo e stato leggibile.
 - Ingresso stanza con RPC Supabase, addebito Star e fallback locale.
 - Chat per stanza con salvataggio messaggi, utenti online, typing indicator, risposte rapide, citazioni, reazioni, mute, invito e uscita stanza.
@@ -60,7 +60,7 @@ NEXT_PUBLIC_SITE_URL
 ```
 
 In Supabase apri `Authentication > URL Configuration` e imposta il dominio dell'app in `Site URL`.
-Aggiungi anche gli stessi domini in `Redirect URLs`, includendo il ritorno alla app: `http://localhost:3000/**`, `http://localhost:3000/rooms`, l'URL production Vercel con `/**` e `/rooms`, e se usi preview il pattern Vercel del team. Il magic link rientra sempre su `/rooms`, non sulla landing.
+Aggiungi anche gli stessi domini in `Redirect URLs`, includendo il ritorno alla app: `http://localhost:3000/**`, `http://localhost:3000/rooms`, l'URL production Vercel con `/**` e `/rooms`, e se usi preview il pattern Vercel del team. In `Authentication > Providers > Email` abilita Email/Password e lascia attiva la conferma email per verificare i nuovi account.
 
 Il comando di build e:
 

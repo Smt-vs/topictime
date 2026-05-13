@@ -1005,6 +1005,32 @@ textarea:disabled {
   gap: 16px;
 }
 
+.auth-mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.36);
+}
+
+.auth-mode-switch button {
+  min-height: 38px;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.auth-mode-switch button.is-selected {
+  background: var(--surface-strong);
+  color: var(--ink);
+  box-shadow: 0 8px 20px rgba(23, 56, 63, 0.1);
+}
+
 .auth-form {
   display: grid;
   gap: 9px;
