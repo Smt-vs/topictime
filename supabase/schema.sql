@@ -840,6 +840,41 @@ begin
 end;
 $$;
 
+create or replace function public.report_room(room_slug text, report_reason text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_user_id uuid := (select auth.uid());
+  target_room_id uuid;
+  created_report_id uuid;
+begin
+  if current_user_id is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  if char_length(trim(coalesce(report_reason, ''))) < 3 then
+    raise exception 'report_reason_required';
+  end if;
+
+  select id into target_room_id
+  from public.rooms
+  where slug = room_slug;
+
+  if target_room_id is null then
+    raise exception 'room_not_found';
+  end if;
+
+  insert into public.moderation_reports (reporter_id, room_id, reason)
+  values (current_user_id, target_room_id, left(trim(report_reason), 280))
+  returning id into created_report_id;
+
+  return created_report_id;
+end;
+$$;
+
 create or replace function public.ensure_random_rooms(target_count integer default 6)
 returns integer
 language plpgsql
@@ -975,6 +1010,7 @@ grant execute on function public.activate_premium_plan() to authenticated;
 grant execute on function public.save_profile(text, text, text, text[], text) to authenticated;
 grant execute on function public.submit_community_feedback(text, text, text) to authenticated;
 grant execute on function public.create_room(text, text, text, text, timestamptz, integer, integer, integer) to authenticated;
+grant execute on function public.report_room(text, text) to authenticated;
 grant execute on function public.ensure_random_rooms(integer) to anon, authenticated;
 
 alter table public.themes enable row level security;

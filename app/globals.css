@@ -1050,6 +1050,25 @@ textarea:disabled {
   font-weight: 800;
 }
 
+.auth-text-action {
+  width: fit-content;
+  border: 0;
+  background: transparent;
+  color: var(--teal-deep);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 900;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.auth-text-action:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
 .auth-delivery-note {
   display: grid;
   gap: 6px;
@@ -1110,11 +1129,6 @@ textarea:disabled {
   color: #266a3c;
 }
 
-.auth-status.demo {
-  background: rgba(255, 241, 190, 0.76);
-  color: var(--coral-deep);
-}
-
 .auth-status.error {
   background: rgba(233, 101, 80, 0.16);
   color: var(--coral-deep);
@@ -1124,6 +1138,97 @@ textarea:disabled {
 .profile-panel {
   display: grid;
   gap: 16px;
+}
+
+.onboarding-panel {
+  background:
+    radial-gradient(circle at 18% 16%, rgba(255, 241, 190, 0.78), transparent 28%),
+    linear-gradient(145deg, rgba(255, 250, 240, 0.92), rgba(220, 239, 245, 0.76));
+}
+
+.onboarding-summary {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.48);
+}
+
+.onboarding-summary strong {
+  color: var(--accent-deep);
+  font-size: 18px;
+}
+
+.onboarding-summary span {
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.onboarding-meter {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(23, 56, 63, 0.1);
+}
+
+.onboarding-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--teal));
+}
+
+.onboarding-steps {
+  display: grid;
+  gap: 8px;
+}
+
+.onboarding-step {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 250, 240, 0.66);
+}
+
+.onboarding-step.is-complete {
+  border-color: rgba(38, 106, 60, 0.28);
+  background: rgba(152, 217, 150, 0.18);
+}
+
+.onboarding-check {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface-strong);
+  color: var(--accent-deep);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.onboarding-step.is-complete .onboarding-check {
+  background: #266a3c;
+  color: var(--paper);
+}
+
+.onboarding-step div {
+  display: grid;
+  gap: 3px;
+}
+
+.onboarding-step p {
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1.35;
 }
 
 .match-list {

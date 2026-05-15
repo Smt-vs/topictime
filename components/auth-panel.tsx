@@ -5,38 +5,40 @@ import type { User } from "@supabase/supabase-js";
 import { KeyRound, LogIn, LogOut, Mail, RefreshCw, ShieldCheck, UserPlus } from "lucide-react";
 import {
   getAuthRedirectError,
+  getAuthRedirectType,
   getAuthState,
   onAuthStateChange,
+  requestPasswordReset,
   resendVerificationEmail,
   signInWithPassword,
   signOut,
   signUpWithPassword,
+  updateCurrentPassword,
 } from "@/lib/topic-time-db";
 
 const initialMessage =
-  "Entra nel tuo spazio TopicTime. Se e la prima volta, crea l'account: ti mandiamo una conferma via email.";
+  "Accedi o crea il tuo account. Dopo la verifica email ritrovi profilo, Star e stanze su ogni dispositivo.";
 
 const modeCopy = {
   "sign-in": {
-    helper: "Usa l'email verificata e la password scelta in registrazione.",
-    loading: "Sto controllando email e password...",
-    message: "Accedi con la tua email verificata e la password.",
+    helper: "Inserisci email e password. Se hai appena creato l'account, conferma prima la mail.",
+    loading: "Controllo le credenziali...",
+    message: "Accedi con email e password.",
     submit: "Entra",
   },
   "sign-up": {
-    helper: "Crea l'account in pochi secondi. Prima di entrare dovrai confermare la mail.",
-    loading: "Sto creando il tuo account...",
-    message: "Crea l'account: subito dopo ti inviamo la mail di conferma.",
+    helper: "Crea l'account, poi apri la mail di verifica per attivarlo.",
+    loading: "Creo il tuo account...",
+    message: "Crea l'account e conferma la mail che ricevi.",
     submit: "Crea account",
   },
 } satisfies Record<AuthMode, { helper: string; loading: string; message: string; submit: string }>;
 
 type AuthMode = "sign-in" | "sign-up";
-type AuthStatus = "idle" | "sent" | "demo" | "error" | "online";
+type AuthStatus = "idle" | "sent" | "error" | "online";
 
 type AuthPanelProps = {
   onAuthChange?: (user: User | null) => void;
-  onDemoAccess?: () => void;
   variant?: "panel" | "gate";
 };
 
@@ -52,31 +54,44 @@ function userLabel(nextUser: User) {
   return nextUser.email ?? "il tuo account";
 }
 
-export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: AuthPanelProps) {
+export function AuthPanel({ onAuthChange, variant = "panel" }: AuthPanelProps) {
   const emailId = useId();
   const passwordId = useId();
+  const newPasswordId = useId();
+  const confirmPasswordId = useId();
   const [mode, setMode] = useState<AuthMode>("sign-in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [status, setStatus] = useState<AuthStatus>("idle");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState(initialMessage);
   const [user, setUser] = useState<User | null>(null);
   const [canResendVerification, setCanResendVerification] = useState(false);
   const [showEmailHelp, setShowEmailHelp] = useState(false);
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     const redirectError = getAuthRedirectError();
+    const redirectType = getAuthRedirectType();
 
     if (redirectError) {
       setStatus("error");
-      setMessage("Non sono riuscito a chiudere la verifica email: " + redirectError);
+      setMessage("Il link non e valido o e scaduto. Richiedi una nuova email e usa l'ultimo link ricevuto.");
       setCanResendVerification(true);
       setShowEmailHelp(true);
     }
 
-    const unsubscribe = onAuthStateChange((nextUser) => {
+    if (redirectType === "recovery") {
+      setIsRecoveryMode(true);
+      setStatus("idle");
+      setShowEmailHelp(false);
+      setMessage("Scegli una nuova password per rientrare nel tuo account.");
+    }
+
+    const unsubscribe = onAuthStateChange((nextUser, event) => {
       if (!mounted) {
         return;
       }
@@ -84,7 +99,16 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
       setUser(nextUser);
       onAuthChange?.(nextUser);
 
-      if (nextUser) {
+      if (event === "PASSWORD_RECOVERY") {
+        setIsRecoveryMode(true);
+        setStatus("idle");
+        setCanResendVerification(false);
+        setShowEmailHelp(false);
+        setMessage("Scegli una nuova password per rientrare nel tuo account.");
+        return;
+      }
+
+      if (nextUser && redirectType !== "recovery") {
         setStatus("online");
         setCanResendVerification(false);
         setShowEmailHelp(false);
@@ -101,14 +125,12 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
       onAuthChange?.(authState.user);
 
       if (!authState.configured) {
-        setStatus("demo");
-        setMessage(
-          "Non vedo ancora Supabase collegato in questo deploy. Puoi entrare in prova, oppure controlla le variabili su Vercel e fai redeploy.",
-        );
+        setStatus("error");
+        setMessage("Il servizio account non e pronto. Controlla le variabili Supabase e riprova.");
         return;
       }
 
-      if (authState.user) {
+      if (authState.user && redirectType !== "recovery") {
         setStatus("online");
         setCanResendVerification(false);
         setShowEmailHelp(false);
@@ -116,7 +138,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
         return;
       }
 
-      if (!redirectError) {
+      if (!redirectError && redirectType !== "recovery") {
         setStatus("idle");
         setMessage(initialMessage);
       }
@@ -145,7 +167,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
     return true;
   }
 
-  function validateForm() {
+  function validateAuthForm() {
     if (!isValidEmail(email)) {
       setStatus("error");
       setMessage("Mi serve una email valida, ad esempio nome@email.it.");
@@ -161,10 +183,26 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
     return true;
   }
 
+  function validateRecoveryForm() {
+    if (!isValidPassword(newPassword)) {
+      setStatus("error");
+      setMessage("Scegli una nuova password di almeno 8 caratteri.");
+      return false;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setStatus("error");
+      setMessage("Le due password non coincidono. Riproviamoci con calma.");
+      return false;
+    }
+
+    return true;
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (isSubmitting || !validateForm()) {
+    if (isSubmitting || !validateAuthForm()) {
       return;
     }
 
@@ -205,7 +243,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
 
         if (!hasSession) {
           setStatus("error");
-          setMessage("Supabase ha accettato l'accesso, ma il browser non ha salvato la sessione. Ricarica la pagina e riprova.");
+          setMessage("L'accesso e riuscito, ma non sono riuscito a salvare la sessione su questo browser. Ricarica la pagina e riprova.");
         }
 
         return;
@@ -222,11 +260,65 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
       }
     } catch (error) {
       setStatus("error");
-      setMessage(
-        error instanceof Error
-          ? "Non sono riuscito a completare l'operazione: " + error.message
-          : "Non sono riuscito a completare l'operazione. Riprova tra poco.",
-      );
+      console.warn("Auth submit failed", error);
+      setMessage("Non sono riuscito a completare l'operazione. Riprova tra poco.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handlePasswordResetRequest() {
+    if (!isValidEmail(email)) {
+      setStatus("error");
+      setMessage("Scrivi la tua email: se hai un account, ti mandiamo il link per cambiare password.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setShowEmailHelp(false);
+    setMessage("Sto preparando il link per cambiare password...");
+
+    try {
+      const result = await requestPasswordReset(email);
+
+      setStatus(result.ok ? "sent" : "error");
+      setShowEmailHelp(true);
+      setMessage(result.message);
+    } catch (error) {
+      setStatus("error");
+      console.warn("Password reset request failed", error);
+      setMessage("Non sono riuscito a inviare il recupero password. Riprova tra poco.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handlePasswordUpdate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (isSubmitting || !validateRecoveryForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setMessage("Sto aggiornando la password...");
+
+    try {
+      const result = await updateCurrentPassword(newPassword);
+
+      setStatus(result.ok ? "online" : "error");
+      setMessage(result.message);
+
+      if (result.ok) {
+        setIsRecoveryMode(false);
+        setNewPassword("");
+        setConfirmPassword("");
+        setPassword("");
+      }
+    } catch (error) {
+      setStatus("error");
+      console.warn("Password update failed", error);
+      setMessage("Non sono riuscito ad aggiornare la password. Riprova tra poco.");
     } finally {
       setIsSubmitting(false);
     }
@@ -250,11 +342,8 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
       setMessage(result.message);
     } catch (error) {
       setStatus("error");
-      setMessage(
-        error instanceof Error
-          ? "Non sono riuscito a reinviare la verifica: " + error.message
-          : "Non sono riuscito a reinviare la verifica. Riprova tra poco.",
-      );
+      console.warn("Verification resend failed", error);
+      setMessage("Non sono riuscito a reinviare la verifica. Riprova tra poco.");
     } finally {
       setIsSubmitting(false);
     }
@@ -270,18 +359,20 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
     setMessage(result.ok ? "Sei uscito. Quando vuoi, ti aspettiamo di nuovo qui." : result.message);
   }
 
-  function handleDemoAccess() {
-    setStatus("demo");
-    setMessage("Modalita prova attiva: puoi esplorare TopicTime, ma profilo e Star restano solo su questo dispositivo.");
-    onDemoAccess?.();
-  }
-
   function switchMode(nextMode: AuthMode) {
     setMode(nextMode);
     setStatus("idle");
     setCanResendVerification(false);
     setShowEmailHelp(false);
     setMessage(modeCopy[nextMode].message);
+  }
+
+  function cancelRecoveryMode() {
+    setIsRecoveryMode(false);
+    setNewPassword("");
+    setConfirmPassword("");
+    setStatus("idle");
+    setMessage(initialMessage);
   }
 
   const currentCopy = modeCopy[mode];
@@ -294,11 +385,54 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
         </span>
         <div>
           <p className="eyeline">Account TopicTime</p>
-          <h2 id="auth-title">{variant === "gate" ? "Entra nelle stanze" : "Il tuo accesso"}</h2>
+          <h2 id="auth-title">{isRecoveryMode ? "Cambia password" : variant === "gate" ? "Accedi a TopicTime" : "Il tuo account"}</h2>
         </div>
       </div>
 
-      {user ? (
+      {isRecoveryMode ? (
+        <>
+          <form className="auth-form" onSubmit={handlePasswordUpdate}>
+            <p className="auth-form-note">Scegli una nuova password. Dopo il salvataggio potrai rientrare subito.</p>
+
+            <label htmlFor={newPasswordId}>Nuova password</label>
+            <div className="input-row">
+              <KeyRound size={18} />
+              <input
+                id={newPasswordId}
+                name="new-password"
+                type="password"
+                autoComplete="new-password"
+                placeholder="Almeno 8 caratteri"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+              />
+            </div>
+
+            <label htmlFor={confirmPasswordId}>Ripeti password</label>
+            <div className="input-row">
+              <KeyRound size={18} />
+              <input
+                id={confirmPasswordId}
+                name="confirm-password"
+                type="password"
+                autoComplete="new-password"
+                placeholder="Riscrivila qui"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+              />
+            </div>
+
+            <button className="primary-action" type="submit" disabled={isSubmitting}>
+              <KeyRound size={18} />
+              {isSubmitting ? "Salvataggio..." : "Salva nuova password"}
+            </button>
+          </form>
+
+          <button className="secondary-action" type="button" onClick={cancelRecoveryMode}>
+            Torna all'accesso
+          </button>
+        </>
+      ) : user ? (
         <button className="secondary-action" type="button" onClick={handleSignOut}>
           <LogOut size={18} />
           Esci dall'account
@@ -362,6 +496,12 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
             </button>
           </form>
 
+          {mode === "sign-in" ? (
+            <button className="auth-text-action" type="button" onClick={handlePasswordResetRequest} disabled={isSubmitting}>
+              Password dimenticata? Ricevi un link per cambiarla
+            </button>
+          ) : null}
+
           {canResendVerification ? (
             <button className="secondary-action" type="button" onClick={handleResendVerification} disabled={isSubmitting}>
               <RefreshCw size={18} />
@@ -374,7 +514,7 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
               <strong>Non trovi la mail?</strong>
               <span>Controlla spam, promozioni e l'indirizzo scritto nel form.</span>
               <span>Se hai gia usato questa email, prova direttamente Accedi.</span>
-              <span>In beta privata l'invio puo essere limitato: usa una mail autorizzata o configura l'SMTP del progetto.</span>
+              <span>Se sei in beta privata, usa la mail con cui sei stato invitato o contatta il supporto.</span>
             </div>
           ) : null}
         </>
@@ -384,17 +524,10 @@ export function AuthPanel({ onAuthChange, onDemoAccess, variant = "panel" }: Aut
         {message}
       </p>
 
-      {onDemoAccess && !user ? (
-        <button className="secondary-action" type="button" onClick={handleDemoAccess}>
-          <ShieldCheck size={18} />
-          Prova senza account
-        </button>
-      ) : null}
-
-      {!user ? (
+      {!user && !isRecoveryMode ? (
         <div className="auth-helper" aria-label="Come funziona il login TopicTime">
-          <span>Registrati con email e password.</span>
-          <span>Conferma la mail che ricevi.</span>
+          <span>La password e gestita da Supabase Auth e non viene salvata nelle tabelle pubbliche.</span>
+          <span>Conferma la mail per attivare l'account.</span>
           <span>Accedi e ritrovi profilo, Star e stanze.</span>
         </div>
       ) : null}

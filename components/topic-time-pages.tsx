@@ -35,7 +35,7 @@ import { SupportCenter } from "@/components/support-center";
 type PageKey = "home" | "rooms" | "wallet" | "community" | "profile" | "radar" | "support";
 
 const navItems: { href: string; icon: LucideIcon; id: PageKey; label: string }[] = [
-  { href: "/", icon: Sparkles, id: "home", label: "Visione" },
+  { href: "/", icon: Sparkles, id: "home", label: "Home" },
   { href: "/rooms", icon: Hash, id: "rooms", label: "Stanze" },
   { href: "/wallet", icon: Coins, id: "wallet", label: "Star" },
   { href: "/community", icon: MessageCircle, id: "community", label: "Community" },
@@ -177,9 +177,9 @@ export function WalletPage() {
   const premiumThemes = themeOptions.filter((theme) => theme.premiumOnly).length;
 
   return (
-    <PageShell current="wallet" eyebrow="Economia interna" title="Star, regali e Premium senza interrompere la conversazione." text="Il wallet rende visibile il valore dell'uso: entrare nelle stanze, creare room premium, riscattare bonus e comprare temi.">
+    <PageShell current="wallet" eyebrow="Il tuo wallet" title="Star, regali e Premium senza interrompere la conversazione." text="Qui controlli il saldo, riscatti il regalo gratuito, sblocchi temi e attivi Premium quando vuoi creare stanze tue.">
       <section className="product-section wallet-ledger">
-        <div className="wallet-balance"><Coins size={28} /><span>Saldo demo</span><strong>{initialProfile.coins} Star</strong><p>Regalo gratuito, streak e ricompense riportano l'utente ogni giorno senza forzare notifiche rumorose.</p></div>
+        <div className="wallet-balance"><Coins size={28} /><span>Il tuo saldo</span><strong>{initialProfile.coins} Star</strong><p>Ogni giorno puoi riscattare un regalo gratuito e usare le Star per entrare, personalizzare o passare a Premium.</p></div>
         <div className="ledger-list">
           {initialTransactions.map((transaction) => (
             <article key={transaction.id}><span>{transaction.reason}</span><strong>{transaction.amount > 0 ? "+" : ""}{transaction.amount} Star</strong><small>{transaction.time}</small></article>
@@ -221,7 +221,7 @@ export function WalletPage() {
 
 export function CommunityPage() {
   return (
-    <PageShell current="community" eyebrow="Build in public" title="Una community che non parla solo: decide cosa costruire dopo." text="Feedback, roadmap e reward sono nello stesso flusso, cosi gli utenti vedono il proprio impatto sul prodotto.">
+    <PageShell current="community" eyebrow="La tua voce conta" title="Una community che non parla solo: decide cosa costruire dopo." text="Proponi idee, vota quelle degli altri e ricevi Star quando aiuti TopicTime a diventare piu utile e sicuro.">
       <section className="product-section community-board">
         <div className="feedback-stack">
           {communityFeedbacks.map((idea) => (
@@ -240,11 +240,11 @@ export function CommunityPage() {
 
 export function ProfilePage() {
   return (
-    <PageShell current="profile" eyebrow="Identita conversazionale" title="Il profilo mostra come parli, non solo chi sei." text="Interessi, match, sicurezza e temi aiutano l'utente a capire dove entrare e con chi continuare dopo il timer.">
+    <PageShell current="profile" eyebrow="Il tuo profilo" title="Mostra cosa ti interessa davvero." text="Interessi, bio e match aiutano gli altri a capire con chi stanno parlando e a ritrovarti dopo una stanza riuscita.">
       <section className="product-section profile-layout" id="matches">
         <aside className="profile-passport"><span>{initialProfile.avatarInitials}</span><strong>{initialProfile.displayName}</strong><small>@{initialProfile.username}</small><p>{initialProfile.bio}</p><div>{initialProfile.interests.map((interest) => <em key={interest}>{interest}</em>)}</div></aside>
         <div className="match-list">{companionMatches.map((match) => <article key={match.id}><UserPlus size={20} /><span>{match.topic}</span><strong>{match.name}</strong><p>{match.signal}</p><small>{match.score}% compatibilita</small></article>)}</div>
-        <div className="safety-panel"><ShieldAlert size={24} /><strong>Safety layer</strong><p>Report, mute, stato notifiche e room chiuse costruiscono fiducia senza trasformare la chat in moderazione pesante.</p><ul>{notifications.slice(0, 3).map((notification) => <li key={notification.id}>{notification.title}</li>)}</ul></div>
+        <div className="safety-panel"><ShieldAlert size={24} /><strong>Spazio sicuro</strong><p>Puoi silenziare una stanza, segnalare comportamenti scorretti e tenere sotto controllo le notifiche senza interrompere la conversazione.</p><ul>{notifications.slice(0, 3).map((notification) => <li key={notification.id}>{notification.title}</li>)}</ul></div>
       </section>
     </PageShell>
   );
@@ -252,13 +252,13 @@ export function ProfilePage() {
 
 export function RadarPage() {
   return (
-    <PageShell current="radar" eyebrow="Feature innovativa" title="Radar capisce quando una stanza e pronta per te." text="Un livello di intelligenza prodotto legge segnali leggeri: ritmo, mood, affollamento, interessi e qualita dei prompt.">
+    <PageShell current="radar" eyebrow="Scelta intelligente" title="Radar capisce quando una stanza e pronta per te." text="Invece di farti scorrere all'infinito, TopicTime ti suggerisce stanze con il ritmo, il tema e le persone piu adatti al momento.">
       <section className="product-section radar-stage">
         <div className="radar-visual" aria-label="Radar conversazionale"><div className="radar-ring ring-one" /><div className="radar-ring ring-two" /><div className="radar-ring ring-three" /><span className="radar-dot dot-one">Cinema</span><span className="radar-dot dot-two">Libri</span><span className="radar-dot dot-three">Viaggi</span><div className="radar-center"><Wand2 size={28} /><strong>92%</strong><small>match conversazione</small></div></div>
-        <div className="radar-copy"><p className="eyeline">Non e un feed</p><h2>Il Radar propone la prossima stanza in base al momento, non alla dipendenza.</h2><p>L'utente non deve scrollare: riceve una traiettoria breve, una motivazione e un prompt di ingresso gia calibrato.</p></div>
+        <div className="radar-copy"><p className="eyeline">Non e un feed</p><h2>Il Radar propone la prossima stanza in base al momento, non alla dipendenza.</h2><p>Ti mostra perche una stanza puo funzionare per te e ti offre un prompt di ingresso gia pronto.</p></div>
       </section>
       <section className="product-section signal-grid">{radarSignals.map(([label, metric, text]) => <article key={label}><span>{label}</span><strong>{metric}</strong><p>{text}</p></article>)}</section>
-      <section className="product-section route-panel"><div><Clock size={22} /><strong>Room path</strong><p>Tre stanze suggerite, massimo un'ora, nessun feed infinito.</p></div>{rooms.slice(0, 3).map((room, index) => <article key={room.id}><span>{index + 1}</span><strong>{room.title}</strong><small>{room.compatibility}% compatibile - {room.mood}</small></article>)}</section>
+      <section className="product-section route-panel"><div><Clock size={22} /><strong>Percorso consigliato</strong><p>Tre stanze suggerite, massimo un'ora, nessun feed infinito.</p></div>{rooms.slice(0, 3).map((room, index) => <article key={room.id}><span>{index + 1}</span><strong>{room.title}</strong><small>{room.compatibility}% compatibile - {room.mood}</small></article>)}</section>
     </PageShell>
   );
 }
@@ -269,7 +269,7 @@ export function SupportPage() {
       current="support"
       eyebrow="Supporto e fiducia"
       title="Una chatroom funziona solo se le persone si sentono al sicuro."
-      text="Dai materiali startup emerge un punto chiave: moderazione, bug report e feedback devono essere parte del prodotto, non un canale esterno dimenticato."
+      text="Se qualcosa non va, puoi segnalarlo in pochi secondi. Il supporto serve a proteggere le conversazioni, non a complicarle."
     >
       <SupportCenter />
     </PageShell>

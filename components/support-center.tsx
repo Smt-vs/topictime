@@ -21,50 +21,66 @@ const emptyTicket: TicketDraft = {
   subject: "",
 };
 
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 export function SupportCenter() {
   const [draft, setDraft] = useState<TicketDraft>(emptyTicket);
   const [status, setStatus] = useState<TicketStatus>("idle");
-  const [message, setMessage] = useState("Descrivi il problema o la proposta: useremo il ticket per migliorare la roadmap.");
+  const [message, setMessage] = useState("Scrivici cosa e successo: ti aiutiamo a rientrare in conversazione.");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!draft.email.trim() || !draft.subject.trim() || draft.body.trim().length < 12) {
+    if (!isValidEmail(draft.email)) {
       setStatus("error");
-      setMessage("Inserisci email, titolo e una descrizione di almeno 12 caratteri.");
+      setMessage("Scrivi un indirizzo email valido, cosi possiamo risponderti.");
+      return;
+    }
+
+    if (!draft.subject.trim() || draft.body.trim().length < 12) {
+      setStatus("error");
+      setMessage("Aggiungi un titolo e qualche dettaglio in piu: ci basta capire cosa e successo.");
       return;
     }
 
     setStatus("sending");
-    setMessage("Invio ticket in corso...");
+    setMessage("Sto inviando il ticket...");
 
     const client = getSupabaseClient();
 
     if (!client) {
-      setStatus("sent");
-      setMessage("Ticket registrato in modalita demo. Collega Supabase per salvarlo nel database.");
-      setDraft(emptyTicket);
-      return;
-    }
-
-    const { data: authData } = await client.auth.getUser();
-    const { error } = await client.from("support_tickets").insert({
-      author_id: authData.user?.id ?? null,
-      body: draft.body.trim(),
-      category: draft.category,
-      email: draft.email.trim(),
-      subject: draft.subject.trim(),
-    });
-
-    if (error) {
       setStatus("error");
-      setMessage(`Ticket non salvato: ${error.message}`);
+      setMessage("Il supporto online non e raggiungibile ora. Lascia il testo qui e riprova tra poco.");
       return;
     }
 
-    setStatus("sent");
-    setMessage("Ticket inviato. Grazie: lo useremo per priorita, moderazione e roadmap.");
-    setDraft(emptyTicket);
+    try {
+      const { data: authData } = await client.auth.getUser();
+      const { error } = await client.from("support_tickets").insert({
+        author_id: authData.user?.id ?? null,
+        body: draft.body.trim(),
+        category: draft.category,
+        email: draft.email.trim(),
+        subject: draft.subject.trim(),
+      });
+
+      if (error) {
+        console.warn("Support ticket insert failed", error.message);
+        setStatus("error");
+        setMessage("Non sono riuscito a inviare il ticket. Riprova tra poco: il messaggio resta nel form.");
+        return;
+      }
+
+      setStatus("sent");
+      setMessage("Ticket inviato. Grazie: lo leggiamo e ti rispondiamo appena possibile.");
+      setDraft(emptyTicket);
+    } catch (error) {
+      console.warn("Support ticket submit failed", error);
+      setStatus("error");
+      setMessage("Non sono riuscito a inviare il ticket. Controlla la connessione e riprova tra poco.");
+    }
   }
 
   return (
@@ -87,8 +103,8 @@ export function SupportCenter() {
             <LifeBuoy size={18} />
           </span>
           <div>
-            <p className="eyeline">Supporto community-driven</p>
-            <h2>Apri un ticket</h2>
+            <p className="eyeline">Supporto</p>
+            <h2>Raccontaci cosa non va</h2>
           </div>
         </div>
 
@@ -110,10 +126,10 @@ export function SupportCenter() {
               setDraft((current) => ({ ...current, category: event.target.value as SupportTopic["category"] }))
             }
           >
-            <option value="Bug">Bug</option>
-            <option value="Sicurezza">Sicurezza</option>
-            <option value="FAQ">FAQ</option>
-            <option value="Idea">Idea</option>
+            <option value="Bug">Problema tecnico</option>
+            <option value="Sicurezza">Sicurezza o comportamento scorretto</option>
+            <option value="FAQ">Domanda sull'app</option>
+            <option value="Idea">Idea per migliorare TopicTime</option>
           </select>
         </label>
 

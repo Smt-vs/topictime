@@ -534,7 +534,7 @@ export const initialTransactions: WalletTransaction[] = [
   {
     amount: 20,
     id: "tx-ad",
-    reason: "Ricompensa annuncio",
+    reason: "Bonus esplorazione",
     time: "2 giorni fa",
   },
 ];
@@ -613,23 +613,23 @@ export const communityFeedbacks: CommunityFeedback[] = [
 
 export const roadmapUpdates: RoadmapUpdate[] = [
   {
-    body: "Forum interno, feedback aperti e aggiornamenti trasparenti per far crescere TopicTime con la community.",
+    body: "Feedback, voti e aggiornamenti in un unico spazio, cosi vedi cosa cambia grazie alla community.",
     id: "ru-community",
-    metric: "Community-led growth",
+    metric: "idee votate dagli utenti",
     status: "Live",
     title: "Community Hub",
   },
   {
-    body: "Streak, regalo giornaliero, annunci premiati e vantaggi Premium seguono il modello Freemium del report.",
+    body: "Regalo giornaliero, streak, feedback premiati e vantaggi Premium danno valore al tempo passato nelle stanze.",
     id: "ru-star",
-    metric: "Star economy",
+    metric: "Star guadagnate e usate",
     status: "In sviluppo",
     title: "Economia Star",
   },
   {
     body: "Chatroom a tempo con gruppi ristretti, topic chiari e contatti sbloccabili dopo conversazioni reali.",
     id: "ru-impact",
-    metric: "Impatto sociale",
+    metric: "conversazioni sane",
     status: "Prossimo",
     title: "Metriche di benessere",
   },
@@ -653,12 +653,12 @@ export const dailyMissions: DailyMission[] = [
     title: "5 stanze free al giorno",
   },
   {
-    action: "Guarda due annunci per sbloccare una stanza extra.",
-    id: "mission-ads",
+    action: "Prova un bonus esplorazione quando sei in modalita prova.",
+    id: "mission-bonus",
     progress: 1,
     reward: 20,
     target: 2,
-    title: "Ad pass inclusivo",
+    title: "Bonus esplorazione",
   },
   {
     action: "Pubblica un feedback utile nel Community Hub.",
@@ -677,7 +677,7 @@ export const planFeatures: PlanFeature[] = [
     premium: "Illimitata",
   },
   {
-    free: "3 stanze create al giorno con ads",
+    free: "Solo ingresso nelle stanze",
     label: "Creazione chatroom",
     premium: "Illimitata e prioritaria",
   },
@@ -702,14 +702,14 @@ export const supportTopics: SupportTopic[] = [
     title: "Moderazione e sicurezza",
   },
   {
-    body: "Raccogliamo bug su login, Star, timer, creazione stanze e problemi di sincronizzazione con Supabase.",
+    body: "Raccogliamo bug su login, Star, timer, creazione stanze e problemi di salvataggio o aggiornamento.",
     category: "Bug",
     id: "support-bug",
     responseTime: "Entro 48h",
     title: "Bug report prodotto",
   },
   {
-    body: "Domande su limiti free, Premium, annunci, temi, avatar e sblocco profili a fine chatroom.",
+    body: "Domande su limiti free, Premium, regalo giornaliero, temi, avatar e sblocco profili a fine chatroom.",
     category: "FAQ",
     id: "support-faq",
     responseTime: "Risposta rapida",

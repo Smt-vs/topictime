@@ -1,4 +1,4 @@
-import type { User } from "@supabase/supabase-js";
+import type { AuthChangeEvent, User } from "@supabase/supabase-js";
 import { getAuthRedirectUrl, getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
 import {
   topicIcons,
@@ -29,7 +29,7 @@ export type DbActionResult<T = unknown> = {
     | "weak_password";
   data?: T;
   message: string;
-  mode: "demo" | "remote";
+  mode: "remote";
   ok: boolean;
 };
 
@@ -106,19 +106,11 @@ type CommunityFeedbackRow = {
 
 const themeIds: ThemeId[] = ["zen", "sunset", "pastel", "midnight", "arcade"];
 
-function demoResult(message: string): DbActionResult {
-  return {
-    message,
-    mode: "demo",
-    ok: true,
-  };
-}
-
 function unavailableResult(): DbActionResult {
   return {
-    message: "Azione registrata su questo dispositivo.",
-    mode: "demo",
-    ok: true,
+    message: "Accedi con un account verificato per completare questa azione.",
+    mode: "remote",
+    ok: false,
   };
 }
 
@@ -225,9 +217,9 @@ export async function loadTopicTimeSnapshot(): Promise<DbActionResult<TopicTimeS
 
   if (!client) {
     return {
-      message: "Modalita prova attiva: lobby, wallet e profilo sono pronti.",
-      mode: "demo",
-      ok: true,
+      message: "Servizio account non configurato. Controlla le variabili Supabase.",
+      mode: "remote",
+      ok: false,
     };
   }
 
@@ -294,11 +286,7 @@ export async function loadTopicTimeSnapshot(): Promise<DbActionResult<TopicTimeS
     notificationsResponse.error;
 
   if (firstError) {
-    return {
-      message: firstError.message,
-      mode: "remote",
-      ok: false,
-    };
+    return dbErrorResult<TopicTimeSnapshot>(firstError, "Non sono riuscito ad aggiornare i dati. Riprova tra poco.");
   }
 
   const roomRows = (roomsResponse.data ?? []) as RoomCardRow[];
@@ -319,11 +307,7 @@ export async function loadTopicTimeSnapshot(): Promise<DbActionResult<TopicTimeS
       : { data: [], error: null };
 
   if (messagesResponse.error) {
-    return {
-      message: messagesResponse.error.message,
-      mode: "remote",
-      ok: false,
-    };
+    return dbErrorResult<TopicTimeSnapshot>(messagesResponse.error, "Non sono riuscito a caricare i messaggi. Riprova tra poco.");
   }
 
   const messagesByRoom = ((messagesResponse.data ?? []) as MessageRow[]).reduce<Record<string, ChatMessage[]>>(
@@ -452,7 +436,7 @@ export async function getAuthState() {
   };
 }
 
-export function onAuthStateChange(callback: (user: User | null) => void) {
+export function onAuthStateChange(callback: (user: User | null, event: AuthChangeEvent) => void) {
   const client = getSupabaseClient();
 
   if (!client) {
@@ -461,8 +445,8 @@ export function onAuthStateChange(callback: (user: User | null) => void) {
 
   const {
     data: { subscription },
-  } = client.auth.onAuthStateChange((_event, session) => {
-    callback(session?.user ?? null);
+  } = client.auth.onAuthStateChange((event, session) => {
+    callback(session?.user ?? null, event);
   });
 
   return () => subscription.unsubscribe();
@@ -485,11 +469,21 @@ export function getAuthRedirectError() {
   return description ?? error ?? "La verifica email non e stata completata.";
 }
 
+export function getAuthRedirectType() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const searchParams = new URLSearchParams(window.location.search);
+
+  return hashParams.get("type") ?? searchParams.get("type");
+}
+
 function unavailableAuthResult(): DbActionResult {
   return {
     code: "configuration",
-    message:
-      "Non riesco ancora a collegare il login. Controlla le variabili Supabase su Vercel e fai redeploy; intanto puoi entrare in prova.",
+    message: "Il servizio account non e configurato. Controlla URL e publishable key di Supabase.",
     mode: "remote",
     ok: false,
   };
@@ -517,7 +511,7 @@ function authErrorResult(message: string): DbActionResult {
     return {
       code: "email_delivery_blocked",
       message:
-        "Questa email non puo ancora ricevere messaggi dal progetto. Per la beta usa un indirizzo autorizzato o configura un SMTP personalizzato su Supabase.",
+        "Non riusciamo a inviare email a questo indirizzo in questa fase. Se sei in beta, usa la mail con cui sei stato invitato.",
       mode: "remote",
       ok: false,
     };
@@ -527,7 +521,7 @@ function authErrorResult(message: string): DbActionResult {
     return {
       code: "email_delivery_blocked",
       message:
-        "L'account e stato creato, ma l'invio della mail non e partito. Controlla la configurazione SMTP di Supabase e riprova.",
+        "L'account e stato creato, ma la mail non e partita. Riprova tra poco o chiedi supporto.",
       mode: "remote",
       ok: false,
     };
@@ -539,7 +533,7 @@ function authErrorResult(message: string): DbActionResult {
   ) {
     return {
       code: "auth_disabled",
-      message: "Il login con email e password non e attivo su Supabase. Abilitalo in Authentication > Providers > Email.",
+      message: "L'accesso con email e password non e disponibile in questo momento. Riprova piu tardi.",
       mode: "remote",
       ok: false,
     };
@@ -548,7 +542,7 @@ function authErrorResult(message: string): DbActionResult {
   if (errorMessage.includes("signup") && (errorMessage.includes("disabled") || errorMessage.includes("not allowed"))) {
     return {
       code: "auth_disabled",
-      message: "La registrazione e disattivata su Supabase. Attiva le iscrizioni email prima di creare nuovi account.",
+      message: "La registrazione non e disponibile in questo momento. Riprova piu tardi.",
       mode: "remote",
       ok: false,
     };
@@ -602,7 +596,7 @@ function authErrorResult(message: string): DbActionResult {
   if (errorMessage.includes("redirect")) {
     return {
       code: "redirect",
-      message: "Supabase non accetta l'URL di conferma. Aggiungi il dominio dell'app e /rooms nei Redirect URLs.",
+      message: "Il link di conferma non e valido. Richiedi una nuova email e usa l'ultimo link ricevuto.",
       mode: "remote",
       ok: false,
     };
@@ -612,14 +606,16 @@ function authErrorResult(message: string): DbActionResult {
     return {
       code: "rate_limited",
       message:
-        "Sono partite troppe email in poco tempo. Aspetta qualche minuto; se stai testando spesso, configura un SMTP personalizzato.",
+        "Abbiamo inviato troppe email in poco tempo. Aspetta qualche minuto, poi riprova.",
       mode: "remote",
       ok: false,
     };
   }
 
+  console.warn("Auth service returned an unhandled error", message);
+
   return {
-    message: message || "Non sono riuscito a completare l'accesso. Riprova tra poco.",
+    message: "Non sono riuscito a completare l'accesso. Riprova tra poco.",
     mode: "remote",
     ok: false,
   };
@@ -637,13 +633,127 @@ function authExceptionResult(error: unknown): DbActionResult {
   ) {
     return {
       code: "network",
-      message: "Non riesco a parlare con Supabase in questo momento. Controlla connessione, URL del progetto e chiave pubblica, poi riprova.",
+      message: "Non riesco a collegarmi al servizio account in questo momento. Controlla la connessione e riprova.",
       mode: "remote",
       ok: false,
     };
   }
 
   return authErrorResult(message);
+}
+
+function dbErrorResult<TData = never>(error: unknown, fallbackMessage: string): DbActionResult<TData> {
+  const message = readErrorMessage(error);
+  const errorMessage = message.toLowerCase();
+
+  console.warn("TopicTime database action failed", message);
+
+  if (errorMessage.includes("not_authenticated") || errorMessage.includes("jwt")) {
+    return {
+      message: "Accedi di nuovo per completare questa azione.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  if (errorMessage.includes("premium_required")) {
+    return {
+      message: "Questa azione e riservata agli utenti Premium.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  if (errorMessage.includes("not_enough_coins")) {
+    return {
+      message: "Star insufficienti. Riscatta il regalo gratuito o scegli una stanza gratis.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  if (errorMessage.includes("room_full")) {
+    return {
+      message: "La stanza e piena. Scegline un'altra o genera una nuova lobby.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  if (errorMessage.includes("room_closed")) {
+    return {
+      message: "Questa stanza si e chiusa. Troviamo una nuova conversazione.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  if (errorMessage.includes("room_not_found")) {
+    return {
+      message: "Questa stanza non e piu disponibile.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  if (errorMessage.includes("not_room_member")) {
+    return {
+      message: "Prima entra nella stanza, poi potrai scrivere o reagire.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  if (errorMessage.includes("theme_not_found")) {
+    return {
+      message: "Tema non disponibile. Scegline un altro dal wallet.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  if (errorMessage.includes("report_reason_required")) {
+    return {
+      message: "Segnalazione troppo breve. Aggiungi qualche dettaglio e riprova.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  if (errorMessage.includes("duplicate") && errorMessage.includes("profiles_username")) {
+    return {
+      message: "Questo username e gia in uso. Provane uno diverso.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  if (errorMessage.includes("check constraint") && errorMessage.includes("messages")) {
+    return {
+      message: "Il messaggio e troppo lungo. Accorcialo e riprova.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  if (
+    errorMessage.includes("fetch") ||
+    errorMessage.includes("network") ||
+    errorMessage.includes("failed to load") ||
+    errorMessage.includes("load failed")
+  ) {
+    return {
+      message: "Non riesco a raggiungere TopicTime. Controlla la connessione e riprova.",
+      mode: "remote",
+      ok: false,
+    };
+  }
+
+  return {
+    message: fallbackMessage,
+    mode: "remote",
+    ok: false,
+  };
 }
 
 export async function signUpWithPassword(email: string, password: string): Promise<DbActionResult> {
@@ -679,7 +789,7 @@ export async function signUpWithPassword(email: string, password: string): Promi
       return {
         code: "already_registered",
         message:
-          "Questa email sembra gia registrata. Per sicurezza Supabase non invia una nuova conferma: prova ad accedere con la password.",
+          "Questa email sembra gia registrata. Prova ad accedere con la password che hai scelto.",
         mode: "remote",
         ok: false,
       };
@@ -717,7 +827,7 @@ export async function signInWithPassword(email: string, password: string): Promi
     if (!data.session) {
       return {
         code: "configuration",
-        message: "Le credenziali sono state accettate, ma la sessione non e stata salvata. Ricarica la pagina e riprova.",
+        message: "L'accesso e riuscito, ma non sono riuscito a salvare la sessione su questo browser. Ricarica la pagina e riprova.",
         mode: "remote",
         ok: false,
       };
@@ -764,18 +874,74 @@ export async function resendVerificationEmail(email: string): Promise<DbActionRe
   }
 }
 
+export async function requestPasswordReset(email: string): Promise<DbActionResult> {
+  const client = getSupabaseClient();
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (!client) {
+    return unavailableAuthResult();
+  }
+
+  try {
+    const { error } = await client.auth.resetPasswordForEmail(normalizedEmail, {
+      redirectTo: getAuthRedirectUrl("/rooms"),
+    });
+
+    if (error) {
+      return authErrorResult(error.message);
+    }
+
+    return {
+      message: "Se questa email ha un account, riceverai un link per scegliere una nuova password.",
+      mode: "remote",
+      ok: true,
+    };
+  } catch (error) {
+    return authExceptionResult(error);
+  }
+}
+
+export async function updateCurrentPassword(password: string): Promise<DbActionResult> {
+  const client = getSupabaseClient();
+
+  if (!client) {
+    return unavailableAuthResult();
+  }
+
+  try {
+    const { error } = await client.auth.updateUser({ password });
+
+    if (error) {
+      return authErrorResult(error.message);
+    }
+
+    return {
+      message: "Password aggiornata. Da ora puoi usare quella nuova per accedere.",
+      mode: "remote",
+      ok: true,
+    };
+  } catch (error) {
+    return authExceptionResult(error);
+  }
+}
+
 export async function signOut(): Promise<DbActionResult> {
   const client = getSupabaseClient();
 
   if (!client) {
-    return demoResult("Stai usando TopicTime senza account.");
+    return {
+      message: "Il servizio account non e configurato.",
+      mode: "remote",
+      ok: false,
+    };
   }
 
   const { error } = await client.auth.signOut();
 
   if (error) {
+    console.warn("Sign out failed", error.message);
     return {
-      message: error.message,
+      message: "Non sono riuscito a chiudere la sessione. Riprova tra poco.",
       mode: "remote",
       ok: false,
     };
@@ -800,11 +966,7 @@ export async function joinRoomInDatabase(roomSlug: string): Promise<DbActionResu
   });
 
   if (error) {
-    return {
-      message: error.message,
-      mode: "remote",
-      ok: false,
-    };
+    return dbErrorResult(error, "Non sono riuscito a farti entrare nella stanza. Riprova tra poco.");
   }
 
   return {
@@ -830,11 +992,7 @@ export async function postMessageInDatabase(
   });
 
   if (error) {
-    return {
-      message: error.message,
-      mode: "remote",
-      ok: false,
-    };
+    return dbErrorResult<{ message_id: string }>(error, "Non sono riuscito a pubblicare il messaggio. Riprova tra poco.");
   }
 
   return {
@@ -857,11 +1015,7 @@ export async function leaveRoomInDatabase(roomSlug: string): Promise<DbActionRes
   });
 
   if (error) {
-    return {
-      message: error.message,
-      mode: "remote",
-      ok: false,
-    };
+    return dbErrorResult(error, "Non sono riuscito a farti uscire dalla stanza. Riprova tra poco.");
   }
 
   return {
@@ -884,15 +1038,38 @@ export async function reactToMessageInDatabase(messageId: string, reaction: stri
   });
 
   if (error) {
-    return {
-      message: error.message,
-      mode: "remote",
-      ok: false,
-    };
+    return dbErrorResult(error, "Non sono riuscito ad aggiornare la reazione. Riprova tra poco.");
   }
 
   return {
     message: "Reazione aggiornata.",
+    mode: "remote",
+    ok: true,
+  };
+}
+
+export async function reportRoomInDatabase(
+  roomSlug: string,
+  reason: string,
+): Promise<DbActionResult<{ report_id: string }>> {
+  const auth = await requireUser();
+
+  if ("ok" in auth) {
+    return auth as DbActionResult<{ report_id: string }>;
+  }
+
+  const { data, error } = await auth.client.rpc("report_room", {
+    report_reason: reason,
+    room_slug: roomSlug,
+  });
+
+  if (error) {
+    return dbErrorResult<{ report_id: string }>(error, "Non sono riuscito a inviare la segnalazione. Riprova tra poco.");
+  }
+
+  return {
+    data: { report_id: String(data) },
+    message: "Segnalazione ricevuta. Grazie: aiuta a tenere TopicTime sicuro.",
     mode: "remote",
     ok: true,
   };
@@ -908,11 +1085,7 @@ export async function claimStreakInDatabase(): Promise<DbActionResult<{ reward: 
   const { data, error } = await auth.client.rpc("claim_daily_streak");
 
   if (error) {
-    return {
-      message: error.message,
-      mode: "remote",
-      ok: false,
-    };
+    return dbErrorResult<{ reward: number; streak: number }>(error, "Non sono riuscito ad aggiornare la streak. Riprova tra poco.");
   }
 
   return {
@@ -933,11 +1106,7 @@ export async function claimFreeGiftInDatabase(): Promise<DbActionResult<{ reward
   const { data, error } = await auth.client.rpc("claim_free_gift");
 
   if (error) {
-    return {
-      message: error.message,
-      mode: "remote",
-      ok: false,
-    };
+    return dbErrorResult<{ reward: number }>(error, "Non sono riuscito a riscattare il regalo. Riprova tra poco.");
   }
 
   return {
@@ -960,11 +1129,7 @@ export async function purchaseThemeInDatabase(themeId: string): Promise<DbAction
   });
 
   if (error) {
-    return {
-      message: error.message,
-      mode: "remote",
-      ok: false,
-    };
+    return dbErrorResult(error, "Non sono riuscito ad attivare il tema. Riprova tra poco.");
   }
 
   return {
@@ -986,11 +1151,7 @@ export async function activatePremiumInDatabase(): Promise<
   const { data, error } = await auth.client.rpc("activate_premium_plan");
 
   if (error) {
-    return {
-      message: error.message,
-      mode: "remote",
-      ok: false,
-    };
+    return dbErrorResult<{ coins: number; cost: number; premium_until: string }>(error, "Non sono riuscito ad attivare Premium. Riprova tra poco.");
   }
 
   return {
@@ -1017,11 +1178,7 @@ export async function saveProfileInDatabase(profile: UserProfile): Promise<DbAct
   });
 
   if (error) {
-    return {
-      message: error.message,
-      mode: "remote",
-      ok: false,
-    };
+    return dbErrorResult(error, "Non sono riuscito a salvare il profilo. Riprova tra poco.");
   }
 
   return {
@@ -1037,11 +1194,7 @@ export async function submitCommunityFeedbackInDatabase(
   const auth = await requireUser();
 
   if ("ok" in auth) {
-    return {
-      ...auth,
-      data: { id: `local-feedback-${Date.now()}`, reward: 5 },
-      message: "Feedback pubblicato nel Community Hub di prova.",
-    } as DbActionResult<{ id: string; reward: number }>;
+    return auth as DbActionResult<{ id: string; reward: number }>;
   }
 
   const { data, error } = await auth.client.rpc("submit_community_feedback", {
@@ -1051,12 +1204,7 @@ export async function submitCommunityFeedbackInDatabase(
   });
 
   if (error) {
-    return {
-      data: { id: `local-feedback-${Date.now()}`, reward: 5 },
-      message: "Feedback pubblicato in questa sessione. Aggiorna lo schema Supabase per salvarlo online.",
-      mode: "demo",
-      ok: true,
-    };
+    return dbErrorResult<{ id: string; reward: number }>(error, "Non sono riuscito a pubblicare il feedback. Riprova tra poco.");
   }
 
   const result = data as { id?: string; reward?: number };
@@ -1100,11 +1248,7 @@ export async function createRoomInDatabase(input: {
   });
 
   if (error) {
-    return {
-      message: error.message,
-      mode: "remote",
-      ok: false,
-    };
+    return dbErrorResult<{ room_slug: string }>(error, "Non sono riuscito a pubblicare la stanza. Controlla i campi e riprova.");
   }
 
   return {
