@@ -10,10 +10,12 @@ import {
   onAuthStateChange,
   requestPasswordReset,
   resendVerificationEmail,
+  exchangeAuthCodeForSession,
   signInWithPassword,
   signOut,
   signUpWithPassword,
   updateCurrentPassword,
+  verifyAuthTokenHash,
 } from "@/lib/topic-time-db";
 
 const initialMessage =
@@ -76,6 +78,10 @@ export function AuthPanel({ onAuthChange, variant = "panel" }: AuthPanelProps) {
     let mounted = true;
     const redirectError = getAuthRedirectError();
     const redirectType = getAuthRedirectType();
+    const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+    const authCode = searchParams?.get("code") ?? null;
+    const tokenHash = searchParams?.get("token_hash") ?? null;
+    const tokenType = searchParams?.get("type") ?? redirectType;
 
     if (redirectError) {
       setStatus("error");
@@ -89,6 +95,44 @@ export function AuthPanel({ onAuthChange, variant = "panel" }: AuthPanelProps) {
       setStatus("idle");
       setShowEmailHelp(false);
       setMessage("Scegli una nuova password per rientrare nel tuo account.");
+    }
+
+    if (authCode || tokenHash) {
+      setStatus("idle");
+      setMessage("Sto verificando la tua email...");
+
+      const verifyRedirect = async () => {
+        const result = tokenHash
+          ? await verifyAuthTokenHash(tokenHash, tokenType)
+          : await exchangeAuthCodeForSession(authCode as string);
+
+        if (!mounted) {
+          return;
+        }
+
+        if (!result.ok) {
+          setStatus("error");
+          setMessage(result.message);
+          setCanResendVerification(true);
+          setShowEmailHelp(true);
+          return;
+        }
+
+        window.history.replaceState(null, "", window.location.pathname);
+
+        if (tokenType === "recovery") {
+          setIsRecoveryMode(true);
+          setStatus("idle");
+          setCanResendVerification(false);
+          setShowEmailHelp(false);
+          setMessage("Scegli una nuova password per rientrare nel tuo account.");
+          return;
+        }
+
+        await syncCurrentSession("Email verificata. Sto preparando la tua lobby.");
+      };
+
+      void verifyRedirect();
     }
 
     const unsubscribe = onAuthStateChange((nextUser, event) => {
@@ -127,6 +171,10 @@ export function AuthPanel({ onAuthChange, variant = "panel" }: AuthPanelProps) {
       if (!authState.configured) {
         setStatus("error");
         setMessage("Il servizio account non e pronto. Controlla le variabili Supabase e riprova.");
+        return;
+      }
+
+      if (authCode || tokenHash) {
         return;
       }
 
@@ -495,6 +543,13 @@ export function AuthPanel({ onAuthChange, variant = "panel" }: AuthPanelProps) {
               {isSubmitting ? "Un attimo..." : currentCopy.submit}
             </button>
           </form>
+
+          {status === "sent" ? (
+            <button className="secondary-action" type="button" onClick={() => switchMode("sign-in")}>
+              <LogIn size={18} />
+              Ho verificato la mail, accedi
+            </button>
+          ) : null}
 
           {mode === "sign-in" ? (
             <button className="auth-text-action" type="button" onClick={handlePasswordResetRequest} disabled={isSubmitting}>

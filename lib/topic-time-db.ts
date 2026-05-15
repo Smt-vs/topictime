@@ -105,6 +105,9 @@ type CommunityFeedbackRow = {
 };
 
 const themeIds: ThemeId[] = ["zen", "sunset", "pastel", "midnight", "arcade"];
+const emailOtpTypes = ["signup", "invite", "magiclink", "recovery", "email_change", "email"] as const;
+
+type EmailOtpType = (typeof emailOtpTypes)[number];
 
 function unavailableResult(): DbActionResult {
   return {
@@ -621,6 +624,10 @@ function authErrorResult(message: string): DbActionResult {
   };
 }
 
+function asEmailOtpType(value: string | null): EmailOtpType {
+  return emailOtpTypes.includes(value as EmailOtpType) ? (value as EmailOtpType) : "email";
+}
+
 function authExceptionResult(error: unknown): DbActionResult {
   const message = readErrorMessage(error);
   const errorMessage = message.toLowerCase();
@@ -769,7 +776,7 @@ export async function signUpWithPassword(email: string, password: string): Promi
       email: normalizedEmail,
       password,
       options: {
-        emailRedirectTo: getAuthRedirectUrl("/rooms"),
+        emailRedirectTo: getAuthRedirectUrl("/auth/confirm?next=/rooms"),
       },
     });
 
@@ -856,7 +863,7 @@ export async function resendVerificationEmail(email: string): Promise<DbActionRe
       type: "signup",
       email: normalizedEmail,
       options: {
-        emailRedirectTo: getAuthRedirectUrl("/rooms"),
+        emailRedirectTo: getAuthRedirectUrl("/auth/confirm?next=/rooms"),
       },
     });
 
@@ -866,6 +873,57 @@ export async function resendVerificationEmail(email: string): Promise<DbActionRe
 
     return {
       message: "Email di verifica reinviata. Se non la vedi subito, controlla anche spam o promozioni.",
+      mode: "remote",
+      ok: true,
+    };
+  } catch (error) {
+    return authExceptionResult(error);
+  }
+}
+
+export async function exchangeAuthCodeForSession(code: string): Promise<DbActionResult> {
+  const client = getSupabaseClient();
+
+  if (!client) {
+    return unavailableAuthResult();
+  }
+
+  try {
+    const { error } = await client.auth.exchangeCodeForSession(code);
+
+    if (error) {
+      return authErrorResult(error.message);
+    }
+
+    return {
+      message: "Email verificata. Sto aprendo TopicTime.",
+      mode: "remote",
+      ok: true,
+    };
+  } catch (error) {
+    return authExceptionResult(error);
+  }
+}
+
+export async function verifyAuthTokenHash(tokenHash: string, type: string | null): Promise<DbActionResult> {
+  const client = getSupabaseClient();
+
+  if (!client) {
+    return unavailableAuthResult();
+  }
+
+  try {
+    const { error } = await client.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: asEmailOtpType(type),
+    });
+
+    if (error) {
+      return authErrorResult(error.message);
+    }
+
+    return {
+      message: "Email verificata. Sto aprendo TopicTime.",
       mode: "remote",
       ok: true,
     };

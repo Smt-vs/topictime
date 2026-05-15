@@ -53,6 +53,8 @@ Le password non sono e non devono essere salvate in `public.profiles` o in altre
 
 Il progetto e configurato per Vercel con `vercel.json`.
 
+Su Vercel usa `applicativo` come Root Directory del progetto. La landing e l'app ora vivono nello stesso deploy Next.js: `/` e le pagine marketing sono la landing, `/rooms` e il flusso autenticato sono l'applicativo. Le vecchie URL statiche della landing (`/index.html`, `/funziona.html`, `/community.html`, ecc.) vengono reindirizzate alle nuove route Next.
+
 Imposta su Vercel queste environment variables per Production, Preview e Development:
 
 ```bash
@@ -62,7 +64,13 @@ NEXT_PUBLIC_SITE_URL
 ```
 
 In Supabase apri `Authentication > URL Configuration` e imposta il dominio dell'app in `Site URL`.
-Aggiungi anche gli stessi domini in `Redirect URLs`, includendo il ritorno alla app per verifica email e recupero password: `http://localhost:3000/**`, `http://localhost:3000/rooms`, l'URL production Vercel con `/**` e `/rooms`, e se usi preview il pattern Vercel del team. In `Authentication > Providers > Email` abilita Email/Password e lascia attiva la conferma email per verificare i nuovi account.
+Aggiungi anche gli stessi domini in `Redirect URLs`, includendo il ritorno alla app per verifica email e recupero password: `http://localhost:3000/**`, `http://localhost:3000/rooms`, `http://localhost:3000/auth/confirm`, l'URL production Vercel con `/**`, `/rooms` e `/auth/confirm`, e se usi preview il pattern Vercel del team. In `Authentication > Providers > Email` abilita Email/Password e lascia attiva la conferma email per verificare i nuovi account.
+
+Se personalizzi il template della mail di conferma, usa un link verso `/auth/confirm` con `token_hash`, `type` e `next`, ad esempio:
+
+```html
+{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/rooms
+```
 
 Per test reali con utenti esterni configura anche `Authentication > SMTP Settings`: il mailer standard di Supabase e pensato per sviluppo, ha limiti stretti e puo non consegnare email a indirizzi non autorizzati nel progetto. Se la registrazione va a buon fine ma non arriva la verifica, controlla spam/promozioni, i rate limit Auth e l'SMTP personalizzato.
 
