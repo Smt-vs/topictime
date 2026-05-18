@@ -21,6 +21,13 @@ const emptyTicket: TicketDraft = {
   subject: "",
 };
 
+const supportCategoryLabels = {
+  Bug: "Qualcosa non funziona",
+  FAQ: "Domande frequenti",
+  Idea: "Idea",
+  Sicurezza: "Sicurezza",
+} satisfies Record<SupportTopic["category"], string>;
+
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
@@ -46,7 +53,7 @@ export function SupportCenter() {
     }
 
     setStatus("sending");
-    setMessage("Sto inviando il ticket...");
+    setMessage("Sto inviando la richiesta...");
 
     const client = getSupabaseClient();
 
@@ -69,17 +76,17 @@ export function SupportCenter() {
       if (error) {
         console.warn("Support ticket insert failed", error.message);
         setStatus("error");
-        setMessage("Non sono riuscito a inviare il ticket. Riprova tra poco: il messaggio resta nel form.");
+        setMessage("Non sono riuscito a inviare la richiesta. Riprova tra poco: il messaggio resta qui.");
         return;
       }
 
       setStatus("sent");
-      setMessage("Ticket inviato. Grazie: lo leggiamo e ti rispondiamo appena possibile.");
+      setMessage("Richiesta inviata. Grazie: la leggiamo e ti rispondiamo appena possibile.");
       setDraft(emptyTicket);
     } catch (error) {
       console.warn("Support ticket submit failed", error);
       setStatus("error");
-      setMessage("Non sono riuscito a inviare il ticket. Controlla la connessione e riprova tra poco.");
+      setMessage("Non sono riuscito a inviare la richiesta. Controlla la connessione e riprova tra poco.");
     }
   }
 
@@ -89,7 +96,7 @@ export function SupportCenter() {
         {supportTopics.map((topic) => (
           <article key={topic.id}>
             {topic.category === "Bug" ? <Bug size={20} /> : <ShieldAlert size={20} />}
-            <span>{topic.category}</span>
+            <span>{supportCategoryLabels[topic.category]}</span>
             <strong>{topic.title}</strong>
             <p>{topic.body}</p>
             <small>{topic.responseTime}</small>
@@ -97,7 +104,7 @@ export function SupportCenter() {
         ))}
       </div>
 
-      <form className="support-form" onSubmit={handleSubmit}>
+      <form className="support-form" id="support-form" onSubmit={handleSubmit}>
         <div className="panel-title-row">
           <span className="icon-badge">
             <LifeBuoy size={18} />
@@ -126,7 +133,7 @@ export function SupportCenter() {
               setDraft((current) => ({ ...current, category: event.target.value as SupportTopic["category"] }))
             }
           >
-            <option value="Bug">Problema tecnico</option>
+            <option value="Bug">Qualcosa non funziona</option>
             <option value="Sicurezza">Sicurezza o comportamento scorretto</option>
             <option value="FAQ">Domanda sull'app</option>
             <option value="Idea">Idea per migliorare TopicTime</option>
@@ -153,7 +160,7 @@ export function SupportCenter() {
 
         <button className="primary-action" type="submit" disabled={status === "sending"}>
           <Send size={18} />
-          {status === "sending" ? "Invio..." : "Invia ticket"}
+          {status === "sending" ? "Invio..." : "Invia richiesta"}
         </button>
 
         <p className={`auth-status ${status === "error" ? "error" : status === "sent" ? "sent" : "idle"}`}>

@@ -391,7 +391,7 @@ export function TopicTimeApp() {
   const onboardingDoneCount = onboardingItems.filter((item) => item.done).length;
   const onboardingProgress = Math.round((onboardingDoneCount / onboardingItems.length) * 100);
   const nextOnboardingItem = onboardingItems.find((item) => !item.done);
-  const guideTitle = nextOnboardingItem ? nextOnboardingItem.title : "La demo e pronta";
+  const guideTitle = nextOnboardingItem ? nextOnboardingItem.title : "TopicTime e pronto";
   const guideText = nextOnboardingItem
     ? nextOnboardingItem.hint
     : "Hai completato il flusso principale: ora puoi provare una nuova stanza o creare una room se hai Premium.";
@@ -933,7 +933,7 @@ export function TopicTimeApp() {
     setCommunityIdeas((current) =>
       current.map((idea) => (idea.id === ideaId ? { ...idea, votes: idea.votes + 1 } : idea)),
     );
-    setSync({ message: "Voto aggiunto. Le idee piu votate entrano nella roadmap del prodotto." });
+    setSync({ message: "Voto aggiunto. Le idee piu votate entrano nella roadmap." });
   }
 
   async function handleSubmitCommunityFeedback(event: FormEvent<HTMLFormElement>) {
@@ -983,7 +983,7 @@ export function TopicTimeApp() {
     setNoticeList((current) => [
       {
         id: `notice-community-${Date.now()}`,
-        message: "La tua proposta e entrata nel Community Hub.",
+        message: "La tua proposta e entrata nello spazio community.",
         status: "new",
         title: `+${reward} Star feedback`,
       },
@@ -1119,9 +1119,17 @@ export function TopicTimeApp() {
             <p className="eyeline">Chatroom a tempo</p>
             <h1 id="login-title">Entra con il tuo account. Poi si parla.</h1>
             <p>
-              TopicTime salva profilo, Star e chatroom sul tuo account verificato. Crea l'accesso,
-              conferma la mail e ritrovi tutto quando torni.
+              Crea il tuo accesso, conferma la mail e ritrovi profilo, Star e stanze ogni volta
+              che torni. Una porta sola, semplice, per entrare davvero.
             </p>
+            <div className="hero-actions">
+              <Link className="secondary-action" href="/">
+                Scopri TopicTime
+              </Link>
+              <Link className="secondary-action" href="/support">
+                Serve aiuto?
+              </Link>
+            </div>
           </div>
 
           <div className="login-side">
@@ -1148,8 +1156,8 @@ export function TopicTimeApp() {
             />
 
             <p className="login-helper">
-              Per sicurezza la password non compare nel database pubblico: Supabase Auth la conserva come hash
-              nella tabella interna `auth.users`.
+              La tua password resta privata. Ti chiediamo solo di confermare la mail per proteggere
+              account, Star e stanze.
             </p>
           </div>
         </section>
@@ -1229,7 +1237,7 @@ export function TopicTimeApp() {
       <section className="workspace">
         <header className="topbar">
           <div>
-            <p className="eyeline">{databaseOnline ? "Dati sincronizzati" : "Connessione account"}</p>
+            <p className="eyeline">{databaseOnline ? "Tutto aggiornato" : "Account in controllo"}</p>
             <h1>Trova la stanza giusta per quello che vuoi dire.</h1>
           </div>
 
@@ -1258,7 +1266,7 @@ export function TopicTimeApp() {
 
         <section className="flow-guide-panel" aria-labelledby="flow-guide-title">
           <div className="flow-guide-copy">
-            <p className="eyeline">Percorso demo</p>
+            <p className="eyeline">Primi passi</p>
             <h2 id="flow-guide-title">{guideTitle}</h2>
             <p>{guideText}</p>
           </div>
@@ -1621,7 +1629,7 @@ export function TopicTimeApp() {
               <div className="panel-heading">
                 <div>
                   <p className="eyeline">La community decide</p>
-                  <h2 id="community-title">Community Hub</h2>
+                  <h2 id="community-title">Spazio community</h2>
                 </div>
                 <Megaphone size={24} />
               </div>
@@ -1971,7 +1979,7 @@ export function TopicTimeApp() {
                   <ShieldAlert size={18} />
                 </span>
                 <div>
-                  <p className="eyeline">Trust & safety</p>
+                  <p className="eyeline">Sicurezza</p>
                   <h2 id="moderation-title">Segnalazioni</h2>
                 </div>
               </div>

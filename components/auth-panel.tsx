@@ -183,7 +183,7 @@ export function AuthPanel({ onAuthChange, variant = "panel" }: AuthPanelProps) {
 
       if (!authState.configured) {
         setStatus("error");
-        setMessage("Il servizio account non e pronto. Controlla le variabili Supabase e riprova.");
+        setMessage("L'accesso non e disponibile in questo momento. Riprova tra poco.");
         return;
       }
 
@@ -312,7 +312,7 @@ export function AuthPanel({ onAuthChange, variant = "panel" }: AuthPanelProps) {
 
         if (!hasSession) {
           setStatus("error");
-          setMessage("L'accesso e riuscito, ma non sono riuscito a salvare la sessione su questo browser. Ricarica la pagina e riprova.");
+          setMessage("Accesso quasi completato. Ricarica la pagina e riprova.");
         }
 
         return;
@@ -620,9 +620,9 @@ export function AuthPanel({ onAuthChange, variant = "panel" }: AuthPanelProps) {
 
       {!user && !isRecoveryMode ? (
         <div className="auth-helper" aria-label="Come funziona il login TopicTime">
-          <span>La password e gestita da Supabase Auth e non viene salvata nelle tabelle pubbliche.</span>
-          <span>Conferma la mail per attivare l'account.</span>
-          <span>Accedi e ritrovi profilo, Star e stanze.</span>
+          <span>La password resta privata e non viene mai mostrata.</span>
+          <span>Conferma la mail per proteggere l'account.</span>
+          <span>Quando accedi ritrovi profilo, Star e stanze.</span>
         </div>
       ) : null}
     </section>

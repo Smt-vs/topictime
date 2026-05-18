@@ -220,7 +220,7 @@ export async function loadTopicTimeSnapshot(): Promise<DbActionResult<TopicTimeS
 
   if (!client) {
     return {
-      message: "Servizio account non configurato. Controlla le variabili Supabase.",
+      message: "L'accesso non e disponibile in questo momento. Riprova tra poco.",
       mode: "remote",
       ok: false,
     };
@@ -486,7 +486,7 @@ export function getAuthRedirectType() {
 function unavailableAuthResult(): DbActionResult {
   return {
     code: "configuration",
-    message: "Il servizio account non e configurato. Controlla URL e publishable key di Supabase.",
+    message: "L'accesso non e disponibile in questo momento. Riprova tra poco.",
     mode: "remote",
     ok: false,
   };
@@ -838,7 +838,7 @@ export async function signInWithPassword(email: string, password: string): Promi
     if (!data.session) {
       return {
         code: "configuration",
-        message: "L'accesso e riuscito, ma non sono riuscito a salvare la sessione su questo browser. Ricarica la pagina e riprova.",
+        message: "Accesso quasi completato. Ricarica la pagina e riprova.",
         mode: "remote",
         ok: false,
       };
@@ -992,7 +992,7 @@ export async function signOut(): Promise<DbActionResult> {
 
   if (!client) {
     return {
-      message: "Il servizio account non e configurato.",
+      message: "Non riesco a chiudere l'account da qui. Riprova tra poco.",
       mode: "remote",
       ok: false,
     };

@@ -617,7 +617,7 @@ export const roadmapUpdates: RoadmapUpdate[] = [
     id: "ru-community",
     metric: "idee votate dagli utenti",
     status: "Live",
-    title: "Community Hub",
+    title: "Spazio community",
   },
   {
     body: "Regalo giornaliero, streak, feedback premiati e vantaggi Premium danno valore al tempo passato nelle stanze.",
@@ -653,7 +653,7 @@ export const dailyMissions: DailyMission[] = [
     title: "5 stanze free al giorno",
   },
   {
-    action: "Prova un bonus esplorazione quando sei in modalita prova.",
+    action: "Prova un bonus esplorazione quando vuoi scoprire nuovi topic.",
     id: "mission-bonus",
     progress: 1,
     reward: 20,
@@ -661,7 +661,7 @@ export const dailyMissions: DailyMission[] = [
     title: "Bonus esplorazione",
   },
   {
-    action: "Pubblica un feedback utile nel Community Hub.",
+    action: "Pubblica un feedback utile nello spazio community.",
     id: "mission-feedback",
     progress: 0,
     reward: 5,
@@ -702,11 +702,11 @@ export const supportTopics: SupportTopic[] = [
     title: "Moderazione e sicurezza",
   },
   {
-    body: "Raccogliamo bug su login, Star, timer, creazione stanze e problemi di salvataggio o aggiornamento.",
+    body: "Raccontaci cosa non funziona su accesso, Star, timer, creazione stanze o salvataggi.",
     category: "Bug",
     id: "support-bug",
     responseTime: "Entro 48h",
-    title: "Bug report prodotto",
+    title: "Qualcosa non funziona",
   },
   {
     body: "Domande su limiti free, Premium, regalo giornaliero, temi, avatar e sblocco profili a fine chatroom.",
