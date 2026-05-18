@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
+  Check,
   Clock,
   Coins,
   Crown,
@@ -50,6 +51,29 @@ const radarSignals = [
   ["Rischio small talk", "Basso", "Spinge prompt specifici e limita ingressi senza contesto."],
 ];
 
+const landingFlowSteps = [
+  {
+    body: "Email, password e verifica: niente accessi finti, niente password salvate nelle tabelle pubbliche.",
+    icon: Users,
+    title: "Account reale",
+  },
+  {
+    body: "Il primo gesto dentro l'app e semplice: prendi il regalo gratuito e prova una stanza senza attrito.",
+    icon: Gift,
+    title: "Star subito utili",
+  },
+  {
+    body: "La lobby propone topic casuali, utenti presenti, costo, regole e prompt prima dell'ingresso.",
+    icon: Hash,
+    title: "Scelta guidata",
+  },
+  {
+    body: "Premium serve a creare nuove chatroom con durata, capienza, costo e mood.",
+    icon: Crown,
+    title: "Creator economy",
+  },
+];
+
 function ProductNav({ current }: { current: PageKey }) {
   return (
     <header className="product-nav" aria-label="Navigazione principale">
@@ -73,8 +97,8 @@ function ProductNav({ current }: { current: PageKey }) {
         })}
       </nav>
 
-      <Link className="nav-cta" href="/rooms">
-        Apri app
+      <Link className="nav-cta" href="/rooms?auth=login">
+        Accedi
       </Link>
     </header>
   );
@@ -132,8 +156,8 @@ export function LandingPage() {
           <h1>Entra in una stanza quando hai davvero qualcosa da dire.</h1>
           <p>TopicTime trasforma interessi, tempo e compatibilita in chatroom brevi dove la conversazione ha un inizio, un ritmo e una fine.</p>
           <div className="hero-actions">
-            <Link className="primary-action" href="/rooms"><MessageCircle size={18} />Entra nelle stanze</Link>
-            <Link className="secondary-action" href="/radar"><Wand2 size={18} />Scopri il Radar</Link>
+            <Link className="primary-action" href="/rooms?auth=register"><MessageCircle size={18} />Crea account gratis</Link>
+            <Link className="secondary-action" href="#flusso"><Wand2 size={18} />Guarda il flusso</Link>
           </div>
         </div>
         <div className="hero-orbit" aria-label="Anteprima TopicTime">
@@ -148,20 +172,33 @@ export function LandingPage() {
         </div>
       </section>
       <RoomRail />
-      <section className="product-section split-section">
+      <section className="product-section split-section" id="flusso">
         <div>
           <p className="eyeline">Flusso reale</p>
-          <h2>Dalla curiosita alla relazione, senza feed infinito.</h2>
+          <h2>Dalla landing alla prima conversazione, senza feed infinito.</h2>
         </div>
         <div className="ritual-list">
           {[
-            "Entra con un tema chiaro, non con un feed infinito.",
-            "Parla per venti minuti con persone compatibili sul momento.",
-            "Salva segnali, match e memorie utili dopo la stanza.",
+            "Crea l'account, conferma la mail e apri la lobby personale.",
+            "Riscatta il regalo gratuito di Star e scegli una room con topic chiaro.",
+            "Entra, scrivi, reagisci e lascia la stanza quando il timer ha fatto il suo lavoro.",
           ].map((step, index) => (
             <article key={step}><span>{String(index + 1).padStart(2, "0")}</span><p>{step}</p></article>
           ))}
         </div>
+      </section>
+      <section className="product-section landing-flow-preview" aria-label="Demo funzionale TopicTime">
+        {landingFlowSteps.map((step) => {
+          const Icon = step.icon;
+          return (
+            <article key={step.title}>
+              <span><Icon size={18} /></span>
+              <strong>{step.title}</strong>
+              <p>{step.body}</p>
+              <small><Check size={14} /> incluso nella demo</small>
+            </article>
+          );
+        })}
       </section>
       <section className="product-section proof-grid">
         <MetricPill icon={Hash} label="Stanze seed" value={String(rooms.length)} />

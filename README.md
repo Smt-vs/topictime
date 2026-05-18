@@ -22,17 +22,18 @@ Se usi una chiave legacy puoi ancora impostare `NEXT_PUBLIC_SUPABASE_ANON_KEY`. 
 
 ## Funzionalita
 
-- Login solo con account: email, password, verifica email e recupero password.
+- Login solo con account: nome visibile, email, password, verifica email e recupero password.
+- Landing collegata al flusso reale: `/rooms?auth=register` apre la registrazione, `/rooms?auth=login` apre l'accesso e gli inviti stanza usano `/rooms?room=slug`.
 - Stanze generate all'avvio con topic casuali, utenti gia presenti, capienza, costo e stato leggibile.
-- Ingresso stanza con RPC Supabase, sessione autenticata e addebito Star.
-- Chat per stanza con salvataggio messaggi, utenti online, typing indicator, risposte rapide, citazioni, reazioni, mute, invito e uscita stanza.
+- Ingresso stanza con RPC Supabase, sessione autenticata, addebito Star e saldo riallineato dalla risposta del database.
+- Chat per stanza con salvataggio messaggi, utenti online, typing indicator, risposte rapide, citazioni, reazioni toggle persistite, mute, invito e uscita stanza.
 - Wallet con regalo gratuito giornaliero, missioni Star, streak, movimenti recenti e pacchetti Star preparati per un checkout reale.
 - Piano Premium acquistabile con Star; solo utenti Premium possono creare chatroom.
 - Temi acquistabili con Star e blocco Premium.
 - Community Hub: feedback aperti, voti, roadmap trasparente e reward +5 Star per proposta salvata.
 - Supporto integrato per bug, sicurezza, FAQ e idee: il form salva ticket anche quando l'utente non riesce ancora ad accedere.
 - Profilo modificabile con bio, username, interessi e tema attivo.
-- Match post-conversazione, notifiche, onboarding guidato e pannello moderazione con segnalazioni stanza salvate via RPC.
+- Match post-conversazione, notifiche lette persistite, percorso demo guidato, onboarding e pannello moderazione con segnalazioni stanza salvate via RPC.
 - Snapshot iniziale da Supabase: stanze, profilo, temi, movimenti, notifiche e messaggi recenti, con errori tradotti in messaggi sicuri per l'utente.
 
 ## Database Supabase

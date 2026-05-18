@@ -19,17 +19,17 @@ import {
 } from "@/lib/topic-time-db";
 
 const initialMessage =
-  "Accedi o crea il tuo account. Dopo la verifica email ritrovi profilo, Star e stanze su ogni dispositivo.";
+  "Accedi o crea il tuo account: dopo la verifica email ritrovi profilo, Star e stanze su ogni dispositivo.";
 
 const modeCopy = {
   "sign-in": {
-    helper: "Inserisci email e password. Se hai appena creato l'account, conferma prima la mail.",
+    helper: "Bentornato. Inserisci email e password; se ti sei appena registrato, conferma prima la mail.",
     loading: "Controllo le credenziali...",
     message: "Accedi con email e password.",
     submit: "Entra",
   },
   "sign-up": {
-    helper: "Crea l'account, poi apri la mail di verifica per attivarlo.",
+    helper: "Crea il profilo, poi apri la mail di verifica: serve per proteggere account, Star e chat.",
     loading: "Creo il tuo account...",
     message: "Crea l'account e conferma la mail che ricevi.",
     submit: "Crea account",
@@ -57,11 +57,13 @@ function userLabel(nextUser: User) {
 }
 
 export function AuthPanel({ onAuthChange, variant = "panel" }: AuthPanelProps) {
+  const displayNameId = useId();
   const emailId = useId();
   const passwordId = useId();
   const newPasswordId = useId();
   const confirmPasswordId = useId();
   const [mode, setMode] = useState<AuthMode>("sign-in");
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -79,9 +81,20 @@ export function AuthPanel({ onAuthChange, variant = "panel" }: AuthPanelProps) {
     const redirectError = getAuthRedirectError();
     const redirectType = getAuthRedirectType();
     const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+    const requestedAuthMode = searchParams?.get("auth") ?? null;
     const authCode = searchParams?.get("code") ?? null;
     const tokenHash = searchParams?.get("token_hash") ?? null;
     const tokenType = searchParams?.get("type") ?? redirectType;
+
+    if (requestedAuthMode === "register" || requestedAuthMode === "signup") {
+      setMode("sign-up");
+      setMessage(modeCopy["sign-up"].message);
+    }
+
+    if (requestedAuthMode === "login" || requestedAuthMode === "signin") {
+      setMode("sign-in");
+      setMessage(modeCopy["sign-in"].message);
+    }
 
     if (redirectError) {
       setStatus("error");
@@ -228,6 +241,12 @@ export function AuthPanel({ onAuthChange, variant = "panel" }: AuthPanelProps) {
       return false;
     }
 
+    if (mode === "sign-up" && displayName.trim().length < 2) {
+      setStatus("error");
+      setMessage("Aggiungi il nome che vuoi mostrare nelle stanze. Bastano due caratteri.");
+      return false;
+    }
+
     return true;
   }
 
@@ -261,7 +280,9 @@ export function AuthPanel({ onAuthChange, variant = "panel" }: AuthPanelProps) {
 
     try {
       const result =
-        mode === "sign-in" ? await signInWithPassword(email, password) : await signUpWithPassword(email, password);
+        mode === "sign-in"
+          ? await signInWithPassword(email, password)
+          : await signUpWithPassword(email, password, displayName);
 
       if (!result.ok) {
         setStatus("error");
@@ -508,6 +529,24 @@ export function AuthPanel({ onAuthChange, variant = "panel" }: AuthPanelProps) {
 
           <form className="auth-form" onSubmit={handleSubmit}>
             <p className="auth-form-note">{currentCopy.helper}</p>
+
+            {mode === "sign-up" ? (
+              <>
+                <label htmlFor={displayNameId}>Nome visibile</label>
+                <div className="input-row">
+                  <UserPlus size={18} />
+                  <input
+                    id={displayNameId}
+                    name="display-name"
+                    type="text"
+                    autoComplete="name"
+                    placeholder="Come vuoi apparire in chat"
+                    value={displayName}
+                    onChange={(event) => setDisplayName(event.target.value)}
+                  />
+                </div>
+              </>
+            ) : null}
 
             <label htmlFor={emailId}>Email</label>
             <div className="input-row">

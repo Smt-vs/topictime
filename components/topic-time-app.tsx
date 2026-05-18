@@ -73,6 +73,7 @@ import {
   joinRoomInDatabase,
   leaveRoomInDatabase,
   loadTopicTimeSnapshot,
+  markNotificationsReadInDatabase,
   postMessageInDatabase,
   purchaseThemeInDatabase,
   reportRoomInDatabase,
@@ -125,6 +126,18 @@ function makeMessage(text: string, id = `m-${Date.now()}`): ChatMessage {
     text,
     tone: "you",
   };
+}
+
+function getRequestedRoomId() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return new URLSearchParams(window.location.search).get("room");
+}
+
+function isDatabaseId(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 function roomStatusLabel(status: TopicRoom["status"]) {
@@ -201,7 +214,10 @@ export function TopicTimeApp() {
     const randomRooms = createRandomRooms();
 
     setRoomsState(randomRooms);
-    setSelectedRoomId(randomRooms[0]?.id ?? selectedRoomId);
+    setSelectedRoomId((current) => {
+      const requestedRoomId = getRequestedRoomId();
+      return randomRooms.find((room) => room.id === requestedRoomId)?.id ?? randomRooms[0]?.id ?? current;
+    });
     setMessagesByRoom(createStarterMessagesForRooms(randomRooms));
 
     if (announce) {
@@ -212,11 +228,13 @@ export function TopicTimeApp() {
   function applySnapshotData(snapshotData: SnapshotData) {
     if (snapshotData.rooms.length > 0) {
       setRoomsState(snapshotData.rooms);
-      setSelectedRoomId((current) =>
-        snapshotData.rooms.some((room) => room.id === current)
-          ? current
-          : snapshotData.rooms[0]?.id ?? current,
-      );
+      setSelectedRoomId((current) => {
+        const requestedRoomId = getRequestedRoomId();
+        return (
+          snapshotData.rooms.find((room) => room.id === requestedRoomId)?.id ??
+          (snapshotData.rooms.some((room) => room.id === current) ? current : snapshotData.rooms[0]?.id ?? current)
+        );
+      });
     } else {
       seedRandomLobby();
     }
@@ -373,6 +391,24 @@ export function TopicTimeApp() {
   const onboardingDoneCount = onboardingItems.filter((item) => item.done).length;
   const onboardingProgress = Math.round((onboardingDoneCount / onboardingItems.length) * 100);
   const nextOnboardingItem = onboardingItems.find((item) => !item.done);
+  const guideTitle = nextOnboardingItem ? nextOnboardingItem.title : "La demo e pronta";
+  const guideText = nextOnboardingItem
+    ? nextOnboardingItem.hint
+    : "Hai completato il flusso principale: ora puoi provare una nuova stanza o creare una room se hai Premium.";
+  const guideActionLabel =
+    nextOnboardingItem?.id === "gift"
+      ? "Prendi +25 Star"
+      : nextOnboardingItem?.id === "room"
+        ? "Scegli una stanza"
+        : nextOnboardingItem?.id === "message"
+          ? selectedRoom.joined
+            ? "Scrivi ora"
+            : "Entra nella stanza"
+          : nextOnboardingItem?.id === "profile"
+            ? "Completa profilo"
+            : nextOnboardingItem?.id === "premium"
+              ? "Vai al wallet"
+              : "Apri una nuova lobby";
 
   function setSync(result: { message: string; mode?: "remote"; ok?: boolean }) {
     const prefix = result.ok === false ? "Attenzione" : result.mode === "remote" ? "Fatto" : "Nota";
@@ -443,6 +479,10 @@ export function TopicTimeApp() {
       return;
     }
 
+    const alreadyJoinedInDatabase = Boolean(result.data?.already_joined);
+    const walletAfterJoin = result.data?.coins;
+    const chargedForEntry = selectedRoom.cost > 0 && !alreadyJoinedInDatabase;
+
     setRoomsState((current) =>
       current.map((room) =>
         room.id === selectedRoom.id
@@ -452,15 +492,20 @@ export function TopicTimeApp() {
               participants: room.participants.includes(profile.displayName)
                 ? room.participants
                 : [...room.participants, profile.displayName].slice(0, room.limit),
-              people: Math.min(room.limit, room.people + 1),
+              people: alreadyJoinedInDatabase ? room.people : Math.min(room.limit, room.people + 1),
               status: room.status === "scheduled" ? "live" : room.status,
             }
           : room,
       ),
     );
 
-    if (selectedRoom.cost > 0) {
+    if (walletAfterJoin !== undefined) {
+      setProfile((current) => ({ ...current, coins: walletAfterJoin }));
+    } else if (chargedForEntry) {
       setProfile((current) => ({ ...current, coins: current.coins - selectedRoom.cost }));
+    }
+
+    if (chargedForEntry) {
       addTransaction(-selectedRoom.cost, `Ingresso stanza ${selectedRoom.title}`);
     }
 
@@ -557,26 +602,45 @@ export function TopicTimeApp() {
     setSync(result);
   }
 
-  async function reactToMessage(messageId: string, reaction: string) {
-    const result = await reactToMessageInDatabase(messageId, reaction);
+  async function reactToMessage(message: ChatMessage, reaction: string) {
+    if (!isAppUnlocked) {
+      setSync({ message: "Accedi per reagire e salvare il segnale nella stanza." });
+      return;
+    }
+
+    if (!selectedRoom.joined) {
+      setSync({ message: "Prima entra nella stanza, poi puoi reagire ai messaggi." });
+      return;
+    }
+
+    if (!isDatabaseId(message.id)) {
+      setSync({
+        message: "Puoi reagire ai messaggi salvati della stanza. Scrivi o attendi nuovi messaggi reali.",
+      });
+      return;
+    }
+
+    const result = await reactToMessageInDatabase(message.id, reaction);
 
     if (!result.ok) {
       setSync(result);
       return;
     }
 
+    const delta = result.data?.selected === false ? -1 : 1;
+
     setMessagesByRoom((current) => ({
       ...current,
-      [selectedRoom.id]: (current[selectedRoom.id] ?? []).map((message) =>
-        message.id === messageId
+      [selectedRoom.id]: (current[selectedRoom.id] ?? []).map((item) =>
+        item.id === message.id
           ? {
-              ...message,
+              ...item,
               reactions: {
-                ...(message.reactions ?? {}),
-                [reaction]: (message.reactions?.[reaction] ?? 0) + 1,
+                ...(item.reactions ?? {}),
+                [reaction]: Math.max(0, (item.reactions?.[reaction] ?? 0) + delta),
               },
             }
-          : message,
+          : item,
       ),
     }));
   }
@@ -600,7 +664,7 @@ export function TopicTimeApp() {
   }
 
   async function copyRoomInvite() {
-    const inviteUrl = `${window.location.origin}/?room=${selectedRoom.id}`;
+    const inviteUrl = `${window.location.origin}/rooms?room=${selectedRoom.id}`;
 
     try {
       await navigator.clipboard.writeText(inviteUrl);
@@ -942,8 +1006,21 @@ export function TopicTimeApp() {
     setSync({ message: "Contatto aggiunto. Puoi ritrovarlo dopo la stanza." });
   }
 
-  function markNotificationsRead() {
+  async function markNotificationsRead() {
+    if (unreadCount === 0) {
+      setSync({ message: "Non ci sono nuove notifiche da leggere." });
+      return;
+    }
+
     setNoticeList((current) => current.map((notice) => ({ ...notice, status: "read" })));
+    const result = await markNotificationsReadInDatabase();
+
+    if (!result.ok) {
+      setSync(result);
+      return;
+    }
+
+    setSync(result);
   }
 
   function closeReport(reportId: string) {
@@ -989,6 +1066,48 @@ export function TopicTimeApp() {
       ...current,
     ]);
     setSync(result);
+  }
+
+  function scrollToAppSection(sectionId: string) {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function handleGuideAction() {
+    if (!nextOnboardingItem) {
+      seedRandomLobby(true);
+      scrollToAppSection("rooms");
+      return;
+    }
+
+    if (nextOnboardingItem.id === "gift") {
+      void claimFreeGift();
+      return;
+    }
+
+    if (nextOnboardingItem.id === "room") {
+      scrollToAppSection("rooms");
+      return;
+    }
+
+    if (nextOnboardingItem.id === "message") {
+      if (!selectedRoom.joined) {
+        void joinSelectedRoom();
+        return;
+      }
+
+      scrollToAppSection("live-room");
+      return;
+    }
+
+    if (nextOnboardingItem.id === "profile") {
+      scrollToAppSection("profile");
+      return;
+    }
+
+    if (nextOnboardingItem.id === "premium") {
+      scrollToAppSection("wallet");
+      return;
+    }
   }
 
   if (!isAppUnlocked) {
@@ -1137,6 +1256,28 @@ export function TopicTimeApp() {
           <b>{profile.coins} Star nel wallet</b>
         </section>
 
+        <section className="flow-guide-panel" aria-labelledby="flow-guide-title">
+          <div className="flow-guide-copy">
+            <p className="eyeline">Percorso demo</p>
+            <h2 id="flow-guide-title">{guideTitle}</h2>
+            <p>{guideText}</p>
+          </div>
+          <div className="flow-guide-actions">
+            <button className="primary-action" type="button" onClick={handleGuideAction}>
+              <Sparkles size={18} />
+              {guideActionLabel}
+            </button>
+            <div className="flow-guide-steps" aria-label="Stato del flusso utente">
+              {onboardingItems.slice(1, 5).map((item) => (
+                <span className={item.done ? "is-done" : ""} key={item.id}>
+                  {item.done ? <Check size={14} /> : null}
+                  {item.title}
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="main-grid">
           <div className="primary-column">
             <section className="panel rooms-panel" id="rooms" aria-labelledby="rooms-title">
@@ -1227,7 +1368,7 @@ export function TopicTimeApp() {
               </div>
             </section>
 
-            <section className="panel live-panel" aria-labelledby="live-title">
+            <section className="panel live-panel" id="live-room" aria-labelledby="live-title">
               <div className="live-header">
                 <div>
                   <p className="eyeline">Stanza selezionata</p>
@@ -1293,7 +1434,7 @@ export function TopicTimeApp() {
                           Cita
                         </button>
                         {messageReactions.map((reaction) => (
-                          <button key={reaction} type="button" onClick={() => reactToMessage(message.id, reaction)}>
+                          <button key={reaction} type="button" onClick={() => reactToMessage(message, reaction)}>
                             {reaction} {message.reactions?.[reaction] ?? 0}
                           </button>
                         ))}

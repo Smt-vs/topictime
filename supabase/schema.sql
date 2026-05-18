@@ -292,8 +292,9 @@ begin
     from public.room_members
     where room_id = target_room.id
       and profile_id = current_user_id
+      and left_at is null
   ) then
-    return jsonb_build_object('joined', true, 'coins', current_profile.coins);
+    return jsonb_build_object('joined', true, 'already_joined', true, 'coins', current_profile.coins);
   end if;
 
   if current_profile.coins < target_room.coin_cost then
@@ -319,13 +320,17 @@ begin
     target_room.id,
     current_user_id,
     case when target_room.host_id = current_user_id then 'host' else 'member' end
-  );
+  )
+  on conflict (room_id, profile_id) do update
+  set joined_at = now(),
+      left_at = null,
+      role = excluded.role;
 
   update public.rooms
   set status = case when status = 'scheduled' and starts_at <= now() then 'live' else status end
   where id = target_room.id;
 
-  return jsonb_build_object('joined', true, 'coins', current_profile.coins - target_room.coin_cost);
+  return jsonb_build_object('joined', true, 'already_joined', false, 'coins', current_profile.coins - target_room.coin_cost);
 end;
 $$;
 

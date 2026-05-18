@@ -763,9 +763,10 @@ function dbErrorResult<TData = never>(error: unknown, fallbackMessage: string): 
   };
 }
 
-export async function signUpWithPassword(email: string, password: string): Promise<DbActionResult> {
+export async function signUpWithPassword(email: string, password: string, displayName: string): Promise<DbActionResult> {
   const client = getSupabaseClient();
   const normalizedEmail = email.trim().toLowerCase();
+  const normalizedDisplayName = displayName.trim().replace(/\s+/g, " ").slice(0, 42);
 
   if (!client) {
     return unavailableAuthResult();
@@ -776,6 +777,9 @@ export async function signUpWithPassword(email: string, password: string): Promi
       email: normalizedEmail,
       password,
       options: {
+        data: {
+          display_name: normalizedDisplayName || normalizedEmail.split("@")[0],
+        },
         emailRedirectTo: getAuthRedirectUrl("/auth/confirm?next=/rooms"),
       },
     });
@@ -1012,22 +1016,30 @@ export async function signOut(): Promise<DbActionResult> {
   };
 }
 
-export async function joinRoomInDatabase(roomSlug: string): Promise<DbActionResult> {
+export async function joinRoomInDatabase(
+  roomSlug: string,
+): Promise<DbActionResult<{ already_joined?: boolean; coins?: number; joined?: boolean }>> {
   const auth = await requireUser();
 
   if ("ok" in auth) {
-    return auth;
+    return auth as DbActionResult<{ already_joined?: boolean; coins?: number; joined?: boolean }>;
   }
 
-  const { error } = await auth.client.rpc("join_room", {
+  const { data, error } = await auth.client.rpc("join_room", {
     room_slug: roomSlug,
   });
 
   if (error) {
-    return dbErrorResult(error, "Non sono riuscito a farti entrare nella stanza. Riprova tra poco.");
+    return dbErrorResult<{ already_joined?: boolean; coins?: number; joined?: boolean }>(
+      error,
+      "Non sono riuscito a farti entrare nella stanza. Riprova tra poco.",
+    );
   }
 
+  const result = data as { already_joined?: boolean; coins?: number; joined?: boolean } | null;
+
   return {
+    data: result ?? { joined: true },
     message: "Sei dentro la stanza.",
     mode: "remote",
     ok: true,
@@ -1083,24 +1095,62 @@ export async function leaveRoomInDatabase(roomSlug: string): Promise<DbActionRes
   };
 }
 
-export async function reactToMessageInDatabase(messageId: string, reaction: string): Promise<DbActionResult> {
+export async function reactToMessageInDatabase(
+  messageId: string,
+  reaction: string,
+): Promise<DbActionResult<{ selected: boolean }>> {
   const auth = await requireUser();
 
   if ("ok" in auth) {
-    return auth;
+    return auth as DbActionResult<{ selected: boolean }>;
   }
 
-  const { error } = await auth.client.rpc("toggle_message_reaction", {
+  const { data, error } = await auth.client.rpc("toggle_message_reaction", {
     reaction_emoji: reaction,
     target_message_id: messageId,
   });
 
   if (error) {
-    return dbErrorResult(error, "Non sono riuscito ad aggiornare la reazione. Riprova tra poco.");
+    return dbErrorResult<{ selected: boolean }>(
+      error,
+      "Non sono riuscito ad aggiornare la reazione. Riprova tra poco.",
+    );
+  }
+
+  const result = data as { selected?: boolean } | null;
+
+  return {
+    data: { selected: result?.selected ?? true },
+    message: "Reazione aggiornata.",
+    mode: "remote",
+    ok: true,
+  };
+}
+
+export async function markNotificationsReadInDatabase(): Promise<DbActionResult<{ updated: number }>> {
+  const auth = await requireUser();
+
+  if ("ok" in auth) {
+    return auth as DbActionResult<{ updated: number }>;
+  }
+
+  const { data, error } = await auth.client
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("profile_id", auth.user.id)
+    .is("read_at", null)
+    .select("id");
+
+  if (error) {
+    return dbErrorResult<{ updated: number }>(
+      error,
+      "Non sono riuscito ad aggiornare le notifiche. Riprova tra poco.",
+    );
   }
 
   return {
-    message: "Reazione aggiornata.",
+    data: { updated: data?.length ?? 0 },
+    message: "Notifiche segnate come lette.",
     mode: "remote",
     ok: true,
   };
