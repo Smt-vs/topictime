@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tecnologia | TopicTime</title>
+    <meta
+      name="description"
+      content="La tecnologia dietro TopicTime: una base semplice con Next.js, TypeScript, Supabase e Vercel per far funzionare stanze, profili e conversazioni live."
+    >
+    <link rel="stylesheet" href="styles.css?v=10">
+    <script defer src="script.js?v=10"></script>
+  </head>
+  <body data-page="tecnologia">
+    <div class="site-noise" aria-hidden="true"></div>
+
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Homepage TopicTime">
+        <img src="../Materiale/Immagini/logo2.0Semplice_SfondoG.png" alt="TopicTime" width="180" height="180">
+        <span>
+          <strong>TopicTime</strong>
+          <small>anti-feed social</small>
+        </span>
+      </a>
+
+      <nav class="nav" aria-label="Navigazione principale">
+        <a href="visione.html">Manifesto</a>
+        <a href="funziona.html">Rituale</a>
+        <a href="esperienza.html">Temi</a>
+        <a href="community.html">Persone</a>
+        <a href="tecnologia.html">Tech</a>
+        <a href="contatti.html">Contatti</a>
+        <a href="roadmap.html">Roadmap</a>
+      </nav>
+
+      <a class="button small" href="https://project-zry31.vercel.app/" target="_blank" rel="noreferrer">Demo app</a>
+    </header>
+
+    <main>
+      <section class="page-hero tech-hero">
+        <div class="inner page-hero-grid">
+          <div class="reveal">
+            <p class="signal-label">Tecnologia al servizio delle persone</p>
+            <h1>La parte tecnica deve sparire dentro una stanza che funziona.</h1>
+          </div>
+          <p class="page-lead reveal">
+            TopicTime usa Next.js, TypeScript e Supabase per rendere semplice quello
+            che conta davvero: entrare, parlare, sentirsi al sicuro e decidere con chi restare.
+          </p>
+        </div>
+      </section>
+
+      <section class="architecture-section">
+        <div class="inner architecture-grid">
+          <div class="poster-panel reveal">
+            <p class="section-label">Perch&eacute; queste scelte</p>
+            <h2>Serve una base solida, non un sistema complicato.</h2>
+            <p>
+              Prima di aggiungere mille funzioni, TopicTime deve far bene una cosa:
+              creare conversazioni leggere e sicure. Questo stack ci lascia pi&ugrave; tempo
+              per curare l'esperienza, non solo l'infrastruttura.
+            </p>
+          </div>
+
+          <div class="stack-orbit reveal" aria-label="Stack tecnologico TopicTime">
+            <div class="stack-core">TopicTime<br>App</div>
+            <span class="stack-node node-next">Next.js</span>
+            <span class="stack-node node-ts">TypeScript</span>
+            <span class="stack-node node-auth">Auth</span>
+            <span class="stack-node node-db">Postgres</span>
+            <span class="stack-node node-live">Realtime</span>
+            <span class="stack-node node-deploy">Vercel</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="tech-stack-section">
+        <div class="inner section-heading reveal">
+          <p class="section-label">Componenti</p>
+          <h2>Ogni tecnologia risolve un pezzo dell'esperienza.</h2>
+        </div>
+
+        <div class="inner tech-card-grid">
+          <article class="tech-card reveal">
+            <span>Frontend</span>
+            <h3>Next.js</h3>
+            <p>Rende veloci le pagine, fluido il passaggio tra le stanze e chiara l'interfaccia.</p>
+          </article>
+          <article class="tech-card reveal">
+            <span>Qualit&agrave;</span>
+            <h3>TypeScript</h3>
+            <p>Aiuta a evitare errori su utenti, messaggi, stanze e permessi mentre il progetto cresce.</p>
+          </article>
+          <article class="tech-card reveal">
+            <span>Backend</span>
+            <h3>Supabase</h3>
+            <p>Gestisce login, dati e regole di accesso senza costruire tutto da zero.</p>
+          </article>
+          <article class="tech-card reveal">
+            <span>Live rooms</span>
+            <h3>Realtime</h3>
+            <p>Fa sentire la stanza viva: messaggi, presenza e timer si aggiornano senza ricaricare.</p>
+          </article>
+          <article class="tech-card reveal">
+            <span>Database</span>
+            <h3>Postgres</h3>
+            <p>Conserva in modo ordinato profili, topic, eventi, amicizie, segnalazioni e forum.</p>
+          </article>
+          <article class="tech-card reveal">
+            <span>Deploy</span>
+            <h3>Vercel</h3>
+            <p>Permette di mettere online la demo velocemente, con HTTPS e aggiornamenti semplici.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="data-flow-section">
+        <div class="inner flow-map reveal">
+          <div>
+            <p class="section-label">Flusso dell'esperienza</p>
+            <h2>Da un interesse a una conversazione.</h2>
+          </div>
+          <ol class="data-steps">
+            <li><span>01</span><strong>Login</strong><p>L'utente entra nel suo spazio e ritrova interessi, profilo e preferenze.</p></li>
+            <li><span>02</span><strong>Topic</strong><p>La piattaforma propone stanze vicine a quello di cui vuole parlare.</p></li>
+            <li><span>03</span><strong>Stanza</strong><p>Messaggi, timer e presenza restano sincronizzati per tutti i partecipanti.</p></li>
+            <li><span>04</span><strong>Contatto</strong><p>Alla fine si sceglie con chi continuare, senza forzare la relazione.</p></li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="mvp-section">
+        <div class="inner split-layout">
+          <div class="poster-panel reveal">
+            <p class="section-label">Prima demo</p>
+            <h2>Piccola, ma abbastanza vera da far capire l'idea.</h2>
+            <p>
+              La prima versione non deve fare tutto. Deve far vivere il cuore di TopicTime:
+              scegliere un tema, entrare in una stanza, parlare in tempo reale e decidere
+              se tenere il contatto.
+            </p>
+          </div>
+          <div class="tag-matrix reveal" aria-label="Funzioni MVP TopicTime">
+            <span>Login</span>
+            <span>Profilo</span>
+            <span>Topic list</span>
+            <span>Room timer</span>
+            <span>Realtime chat</span>
+            <span>Presence</span>
+            <span>Friend unlock</span>
+            <span>Moderazione base</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="final-cta">
+        <div class="inner final-card reveal">
+          <img src="../Materiale/Immagini/logo2.0Semplice_SfondoG.png" alt="" width="180" height="180">
+          <div>
+            <p class="section-label">Prossimo passo</p>
+            <h2>La tecnologia funziona quando non si nota.</h2>
+            <p>Se la demo ti fa entrare in una stanza senza pensare al sistema sotto, siamo sulla strada giusta.</p>
+          </div>
+          <a class="button" href="https://project-zry31.vercel.app/" target="_blank" rel="noreferrer">Apri la demo</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>TopicTime - Startup ITI Lucarelli 5&deg;IB</p>
+    </footer>
+  </body>
+</html>

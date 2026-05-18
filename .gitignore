@@ -1,7 +1,2 @@
-.next
-node_modules
-.env*.local
-.vercel
-out
-dist
-npm-debug.log*
+.DS_Store
+.applicativo-inner-git-backup/
