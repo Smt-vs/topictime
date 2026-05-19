@@ -3016,13 +3016,72 @@ textarea:disabled {
 }
 
 @media (max-width: 520px) {
+  .product-page {
+    overflow-x: clip;
+    padding: 8px;
+  }
+
   .product-nav {
     position: static;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    padding: 8px;
+    border-radius: 22px;
+  }
+
+  .product-brand {
+    min-width: 0;
+  }
+
+  .product-brand img {
+    width: 42px;
+    height: 42px;
+  }
+
+  .product-brand strong {
+    font-size: 16px;
+  }
+
+  .product-brand small {
+    font-size: 9px;
+    letter-spacing: 0.04em;
+  }
+
+  .nav-cta {
+    display: inline-flex;
+    min-height: 36px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+
+  .product-nav nav {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 2px;
+    min-width: 0;
+    overflow: visible;
+    mask-image: none;
   }
 
   .product-nav nav a {
-    min-height: 34px;
-    padding: 0 10px;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    min-height: 44px;
+    overflow: hidden;
+    padding: 4px 1px;
+    font-size: 9px;
+    line-height: 1;
+    text-align: center;
+  }
+
+  .product-nav nav a svg {
+    width: 15px;
+    height: 15px;
   }
 
   .hero-orbit::after,
@@ -3039,6 +3098,7 @@ textarea:disabled {
   .hero-orbit {
     align-content: center;
     gap: 8px;
+    min-height: 390px;
   }
 
   .topbar h1 {
@@ -3047,13 +3107,14 @@ textarea:disabled {
   }
 
   .login-shell {
+    align-items: start;
     justify-items: start;
     padding: 12px;
   }
 
   .login-card {
     width: 100%;
-    max-width: 370px;
+    max-width: min(100%, 370px);
     padding: 12px;
   }
 
@@ -3072,17 +3133,28 @@ textarea:disabled {
   .hero-orbit,
   .landing-section-nav,
   .ticker {
-    width: 100%;
-    max-width: 370px;
+    width: min(100%, 370px);
+    max-width: calc(100vw - 16px);
     margin-inline: 0;
   }
 
   .hero-copy-block {
-    padding: 24px;
+    padding: 22px;
   }
 
   .hero-copy-block h1,
-  .page-hero h1 {
+  .page-hero h1,
+  .split-section h2,
+  .radar-copy h2,
+  .report-section h2,
+  .market-grid h2,
+  .event-preview h2,
+  .experience-section h2,
+  .business-section h2,
+  .growth-section h2,
+  .audience-section h2,
+  .roadmap-landing h2,
+  .final-landing-cta h2 {
     font-size: clamp(34px, 11vw, 44px);
     line-height: 0.96;
     letter-spacing: -0.055em;
@@ -3094,6 +3166,79 @@ textarea:disabled {
   .login-copy p:not(.eyeline) {
     max-width: 100%;
     overflow-wrap: anywhere;
+  }
+
+  .landing-hero,
+  .page-hero,
+  .product-section,
+  .room-rail {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .page-hero,
+  .product-section {
+    overflow: hidden;
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .room-rail article,
+  .comparison-grid article,
+  .rule-stack article,
+  .metric-stack article,
+  .market-card-grid article,
+  .theme-story-grid article,
+  .growth-rail article,
+  .persona-grid article,
+  .roadmap-lane article,
+  .landing-flow-preview article,
+  .mission-grid article,
+  .support-topics article {
+    padding: 14px;
+  }
+
+  .landing-section-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-radius: 18px;
+  }
+
+  .landing-section-nav a {
+    min-width: 0;
+    padding: 0 10px;
+  }
+
+  .ticker {
+    border-radius: 18px;
+  }
+
+  .ticker span {
+    padding: 10px 16px;
+    font-size: 12px;
+  }
+
+  .metric-stack strong {
+    font-size: clamp(32px, 12vw, 44px);
+    line-height: 1;
+  }
+
+  .ritual-list article,
+  .ledger-list article {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .ritual-list article p,
+  .ledger-list article small {
+    grid-column: 2;
+  }
+
+  .route-list span {
+    width: 100%;
+    min-height: 0;
+    border-radius: 16px;
+    line-height: 1.35;
   }
 
   .status-strip {
