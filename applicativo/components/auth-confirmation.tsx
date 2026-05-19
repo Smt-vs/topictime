@@ -32,7 +32,7 @@ export function AuthConfirmation() {
 
       if (error) {
         setState("error");
-        setMessage("Il link non e valido o e scaduto. Torna al login e richiedi una nuova email.");
+        setMessage("Il link non è valido o è scaduto. Torna al login e richiedi una nuova email.");
         return;
       }
 

@@ -24,7 +24,7 @@ const initialMessage =
 const modeCopy = {
   "sign-in": {
     helper: "Bentornato. Inserisci email e password; se ti sei appena registrato, conferma prima la mail.",
-    loading: "Controllo le credenziali...",
+    loading: "Controllo l'accesso...",
     message: "Accedi con email e password.",
     submit: "Entra",
   },
@@ -98,7 +98,7 @@ export function AuthPanel({ onAuthChange, variant = "panel" }: AuthPanelProps) {
 
     if (redirectError) {
       setStatus("error");
-      setMessage("Il link non e valido o e scaduto. Richiedi una nuova email e usa l'ultimo link ricevuto.");
+      setMessage("Il link non è valido o è scaduto. Richiedi una nuova email e usa l'ultimo link ricevuto.");
       setCanResendVerification(true);
       setShowEmailHelp(true);
     }
@@ -183,7 +183,7 @@ export function AuthPanel({ onAuthChange, variant = "panel" }: AuthPanelProps) {
 
       if (!authState.configured) {
         setStatus("error");
-        setMessage("L'accesso non e disponibile in questo momento. Riprova tra poco.");
+        setMessage("L'accesso non è disponibile in questo momento. Riprova tra poco.");
         return;
       }
 
@@ -237,7 +237,7 @@ export function AuthPanel({ onAuthChange, variant = "panel" }: AuthPanelProps) {
 
     if (!isValidPassword(password)) {
       setStatus("error");
-      setMessage("La password deve avere almeno 8 caratteri. Meglio se non e troppo semplice.");
+      setMessage("La password deve avere almeno 8 caratteri. Meglio se non è troppo semplice.");
       return false;
     }
 
@@ -508,7 +508,7 @@ export function AuthPanel({ onAuthChange, variant = "panel" }: AuthPanelProps) {
         </button>
       ) : (
         <>
-          <div className="auth-mode-switch" role="tablist" aria-label="Modalita accesso">
+          <div className="auth-mode-switch" role="tablist" aria-label="Modalità accesso">
             <button
               type="button"
               aria-selected={mode === "sign-in"}
@@ -607,8 +607,8 @@ export function AuthPanel({ onAuthChange, variant = "panel" }: AuthPanelProps) {
             <div className="auth-delivery-note" aria-label="Aiuto email di verifica">
               <strong>Non trovi la mail?</strong>
               <span>Controlla spam, promozioni e l'indirizzo scritto nel form.</span>
-              <span>Se hai gia usato questa email, prova direttamente Accedi.</span>
-              <span>Se sei in beta privata, usa la mail con cui sei stato invitato o contatta il supporto.</span>
+              <span>Se hai già usato questa email, prova direttamente Accedi.</span>
+              <span>Se non arriva nulla entro qualche minuto, scrivi al supporto: ti aiutiamo noi.</span>
             </div>
           ) : null}
         </>

@@ -381,7 +381,7 @@ export const starterMessages: Record<string, ChatMessage[]> = {
       author: "Giulia",
       createdAt: "18:46",
       id: "m-analogica-2",
-      text: "Qui almeno il primo filtro e quello che dici, non la copertina.",
+      text: "Qui almeno il primo filtro è quello che dici, non la copertina.",
       tone: "member",
     },
   ],
@@ -390,14 +390,14 @@ export const starterMessages: Record<string, ChatMessage[]> = {
       author: "Nico",
       createdAt: "18:50",
       id: "m-viaggio-1",
-      text: "Io partirei dalla stazione piu piccola, senza mappe per mezz'ora.",
+      text: "Io partirei dalla stazione più piccola, senza mappe per mezz'ora.",
       tone: "host",
     },
     {
       author: "Teo",
       createdAt: "18:52",
       id: "m-viaggio-2",
-      text: "La parte migliore e quando trovi un bar che non avevi cercato.",
+      text: "La parte migliore è quando trovi un bar che non avevi cercato.",
       tone: "member",
     },
   ],
@@ -406,7 +406,7 @@ export const starterMessages: Record<string, ChatMessage[]> = {
       author: "Marta",
       createdAt: "19:03",
       id: "m-libri-1",
-      text: "Le stanze sui libri funzionano perche nessuno riesce a fingere troppo.",
+      text: "Le stanze sui libri funzionano perché nessuno riesce a fingere troppo.",
       tone: "host",
     },
   ],
@@ -415,7 +415,7 @@ export const starterMessages: Record<string, ChatMessage[]> = {
       author: "Sam",
       createdAt: "19:08",
       id: "m-routine-1",
-      text: "Per me il punto e togliere frizione, non aggiungere sensi di colpa.",
+      text: "Per me il punto è togliere frizione, non aggiungere sensi di colpa.",
       tone: "host",
     },
   ],
@@ -424,7 +424,7 @@ export const starterMessages: Record<string, ChatMessage[]> = {
       author: "Ari",
       createdAt: "19:12",
       id: "m-playlist-1",
-      text: "Una playlist dice molto, ma solo se racconti perche hai scelto quei brani.",
+      text: "Una playlist dice molto, ma solo se racconti perché hai scelto quei brani.",
       tone: "host",
     },
   ],
@@ -433,7 +433,7 @@ export const starterMessages: Record<string, ChatMessage[]> = {
       author: "Dani",
       createdAt: "19:18",
       id: "m-cucina-1",
-      text: "La cucina e memoria pratica: mani, odori, tempi.",
+      text: "La cucina è memoria pratica: mani, odori, tempi.",
       tone: "host",
     },
   ],
@@ -613,7 +613,7 @@ export const communityFeedbacks: CommunityFeedback[] = [
 
 export const roadmapUpdates: RoadmapUpdate[] = [
   {
-    body: "Feedback, voti e aggiornamenti in un unico spazio, cosi vedi cosa cambia grazie alla community.",
+    body: "Feedback, voti e aggiornamenti in un unico spazio, così vedi cosa cambia grazie alla community.",
     id: "ru-community",
     metric: "idee votate dagli utenti",
     status: "Live",
@@ -770,12 +770,12 @@ const randomRoomPrompts: Record<Exclude<TopicCategory, "Tutti">, string[]> = {
     "Allenarsi da soli o con qualcuno cambia tutto?",
   ],
   Gaming: [
-    "Quale gioco e diventato bello solo in compagnia?",
-    "Una lobby che ricordate piu della partita?",
+    "Quale gioco è diventato bello solo in compagnia?",
+    "Una lobby che ricordate più della partita?",
   ],
   Libri: [
     "Un libro che vi ha fatto scrivere a qualcuno?",
-    "Quale personaggio vi ha dato fastidio perche era troppo vero?",
+    "Quale personaggio vi ha dato fastidio perché era troppo vero?",
   ],
   Musica: [
     "Quale canzone vi teletrasporta in un luogo preciso?",
@@ -783,7 +783,7 @@ const randomRoomPrompts: Record<Exclude<TopicCategory, "Tutti">, string[]> = {
   ],
   Viaggi: [
     "Meglio perdersi o avere tutto segnato?",
-    "Quale posto piccolo vi e rimasto addosso?",
+    "Quale posto piccolo vi è rimasto addosso?",
   ],
 };
 

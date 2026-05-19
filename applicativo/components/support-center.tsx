@@ -35,20 +35,20 @@ function isValidEmail(value: string) {
 export function SupportCenter() {
   const [draft, setDraft] = useState<TicketDraft>(emptyTicket);
   const [status, setStatus] = useState<TicketStatus>("idle");
-  const [message, setMessage] = useState("Scrivici cosa e successo: ti aiutiamo a rientrare in conversazione.");
+  const [message, setMessage] = useState("Scrivici cosa è successo: ti aiutiamo a rientrare in conversazione.");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!isValidEmail(draft.email)) {
       setStatus("error");
-      setMessage("Scrivi un indirizzo email valido, cosi possiamo risponderti.");
+      setMessage("Scrivi un indirizzo email valido, così possiamo risponderti.");
       return;
     }
 
     if (!draft.subject.trim() || draft.body.trim().length < 12) {
       setStatus("error");
-      setMessage("Aggiungi un titolo e qualche dettaglio in piu: ci basta capire cosa e successo.");
+      setMessage("Aggiungi un titolo e qualche dettaglio in più: ci basta capire cosa è successo.");
       return;
     }
 
@@ -59,7 +59,7 @@ export function SupportCenter() {
 
     if (!client) {
       setStatus("error");
-      setMessage("Il supporto online non e raggiungibile ora. Lascia il testo qui e riprova tra poco.");
+      setMessage("Il supporto online non è raggiungibile ora. Lascia il testo qui e riprova tra poco.");
       return;
     }
 
@@ -154,7 +154,7 @@ export function SupportCenter() {
           <textarea
             value={draft.body}
             onChange={(event) => setDraft((current) => ({ ...current, body: event.target.value }))}
-            placeholder="Spiega cosa e successo, quale pagina stavi usando e cosa ti aspettavi."
+            placeholder="Spiega cosa è successo, quale pagina stavi usando e cosa ti aspettavi."
           />
         </label>
 

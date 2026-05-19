@@ -4,7 +4,7 @@ import "../applicativo/app/globals.css";
 export const metadata: Metadata = {
   title: "TopicTime - Chatroom a tempo",
   description:
-    "TopicTime e un social a stanze tematiche con login, Star, Premium, community e Radar conversazionale.",
+    "TopicTime è un social a stanze tematiche con login, Star, Premium, community e Radar conversazionale.",
 };
 
 export default function RootLayout({

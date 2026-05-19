@@ -14,6 +14,9 @@
   --green: #98d996;
   --surface: rgba(255, 250, 240, 0.86);
   --surface-strong: rgba(255, 250, 240, 0.96);
+  --font-body: "Avenir Next", "Gill Sans", Verdana, sans-serif;
+  --font-display: "Trebuchet MS", "Avenir Next", Verdana, sans-serif;
+  --focus: 0 0 0 4px rgba(233, 101, 80, 0.24);
   --shadow: 0 20px 50px rgba(23, 56, 63, 0.14);
   --radius: 8px;
 }
@@ -37,7 +40,7 @@ body {
     radial-gradient(circle at 84% 12%, rgba(79, 166, 177, 0.25), transparent 30%),
     radial-gradient(circle at 78% 82%, rgba(146, 113, 217, 0.14), transparent 29%),
     linear-gradient(135deg, #fff9df 0%, #e6f4ee 48%, #eaf3f8 100%);
-  font-family: Verdana, Geneva, sans-serif;
+  font-family: var(--font-body);
   overflow-x: hidden;
 }
 
@@ -82,7 +85,7 @@ h3,
 .topic-tabs,
 .room-card strong,
 .brand-lockup strong {
-  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-family: var(--font-display);
 }
 
 h1,
@@ -90,6 +93,24 @@ h2,
 h3,
 p {
   margin: 0;
+}
+
+::selection {
+  background: rgba(233, 101, 80, 0.26);
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 0;
+  box-shadow: var(--focus);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(66, 100, 108, 0.72);
 }
 
 .topic-app {
@@ -1091,6 +1112,18 @@ textarea:disabled {
   font-weight: 900;
 }
 
+.secondary-action:hover,
+.secondary-action:focus-visible,
+.mini-action:hover,
+.wallet-actions button:hover,
+.coin-pack-list button:hover,
+.nav-cta:hover,
+.nav-cta:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-strong));
+  color: var(--accent-deep);
+}
+
 .action-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1820,7 +1853,7 @@ textarea:disabled {
 .page-hero h1,
 .landing-hero h1,
 .product-section h2 {
-  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-family: var(--font-display);
 }
 
 .product-brand small {
@@ -2876,7 +2909,8 @@ textarea:disabled {
   }
 
   .side-nav {
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, minmax(44px, 1fr));
+    gap: 6px;
   }
 
   .side-nav a {
@@ -2967,6 +3001,65 @@ textarea:disabled {
     font-size: 26px;
   }
 
+  .login-shell {
+    justify-items: start;
+    padding: 12px;
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 370px;
+    padding: 12px;
+  }
+
+  .login-copy {
+    min-height: 260px;
+    padding: 16px;
+  }
+
+  .login-copy h1 {
+    font-size: clamp(32px, 11vw, 42px);
+    line-height: 0.98;
+    letter-spacing: -0.05em;
+  }
+
+  .hero-copy-block,
+  .hero-orbit,
+  .landing-section-nav,
+  .ticker {
+    width: 100%;
+    max-width: 370px;
+    margin-inline: 0;
+  }
+
+  .hero-copy-block {
+    padding: 24px;
+  }
+
+  .hero-copy-block h1,
+  .page-hero h1 {
+    font-size: clamp(34px, 11vw, 44px);
+    line-height: 0.96;
+    letter-spacing: -0.055em;
+    overflow-wrap: anywhere;
+  }
+
+  .hero-copy-block p:not(.eyeline),
+  .page-hero > p:not(.eyeline),
+  .login-copy p:not(.eyeline) {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .status-strip {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .status-strip b {
+    flex: 0 1 auto;
+  }
+
   .rooms-panel,
   .live-panel,
   .compact-panel,
@@ -2977,12 +3070,12 @@ textarea:disabled {
 
   .room-card {
     grid-template-columns: 38px minmax(0, 1fr);
-    min-height: 144px;
+    min-height: 132px;
   }
 
   .room-title-row strong,
   .room-body > span:not(.room-title-row):not(.room-meta) {
-    max-width: 220px;
+    max-width: min(100%, 260px);
   }
 
   .panel-heading,
@@ -2994,6 +3087,17 @@ textarea:disabled {
 
   .timer {
     min-width: 0;
+  }
+
+  .room-rules,
+  .action-row {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-actions > *,
+  .product-nav nav,
+  .composer {
+    width: 100%;
   }
 }
 

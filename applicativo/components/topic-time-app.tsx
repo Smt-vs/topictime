@@ -89,7 +89,7 @@ const coinPacks = [
 ];
 
 const quickReplies = [
-  "Sono d'accordo perche...",
+  "Sono d'accordo perché...",
   "Secondo me invece...",
   "Mi aggancio a questo punto:",
   "Una domanda:",
@@ -359,13 +359,13 @@ export function TopicTimeApp() {
     },
     {
       done: giftClaimedToday,
-      hint: "Ti da Star reali per entrare nelle stanze senza attrito.",
+      hint: "Ti dà Star reali per entrare nelle stanze senza attrito.",
       id: "gift",
       title: "Prendi il regalo di oggi",
     },
     {
       done: joinedCount > 0,
-      hint: "Scegli un topic chiaro e guarda chi c'e dentro.",
+      hint: "Scegli un topic chiaro e guarda chi c'è dentro.",
       id: "room",
       title: "Entra in una stanza",
     },
@@ -391,10 +391,10 @@ export function TopicTimeApp() {
   const onboardingDoneCount = onboardingItems.filter((item) => item.done).length;
   const onboardingProgress = Math.round((onboardingDoneCount / onboardingItems.length) * 100);
   const nextOnboardingItem = onboardingItems.find((item) => !item.done);
-  const guideTitle = nextOnboardingItem ? nextOnboardingItem.title : "TopicTime e pronto";
+  const guideTitle = nextOnboardingItem ? nextOnboardingItem.title : "TopicTime è pronto";
   const guideText = nextOnboardingItem
     ? nextOnboardingItem.hint
-    : "Hai completato il flusso principale: ora puoi provare una nuova stanza o creare una room se hai Premium.";
+    : "Hai completato i primi passi: ora puoi entrare in una nuova stanza o crearne una tua con Premium.";
   const guideActionLabel =
     nextOnboardingItem?.id === "gift"
       ? "Prendi +25 Star"
@@ -448,17 +448,17 @@ export function TopicTimeApp() {
 
   async function joinSelectedRoom() {
     if (!isAppUnlocked) {
-      setSync({ message: "Accedi prima di entrare: cosi salvi Star, chat e progressi." });
+      setSync({ message: "Accedi prima di entrare: così salvi Star, chat e progressi." });
       return;
     }
 
     if (selectedRoom.joined) {
-      setSync({ message: "Sei gia dentro. Scrivi un messaggio o invita qualcuno." });
+      setSync({ message: "Sei già dentro. Scrivi un messaggio o invita qualcuno." });
       return;
     }
 
     if (selectedRoom.people >= selectedRoom.limit) {
-      setSync({ message: "Questa stanza e piena. Scegli un'altra stanza o genera una nuova lobby." });
+      setSync({ message: "Questa stanza è piena. Scegli un'altra stanza o genera una nuova lobby." });
       return;
     }
 
@@ -594,7 +594,7 @@ export function TopicTimeApp() {
           author: "TopicTime",
           createdAt: "Ora",
           id: `system-leave-${Date.now()}`,
-          text: "Hai lasciato la stanza. Puoi rientrare finche il timer e attivo.",
+          text: "Hai lasciato la stanza. Puoi rientrare finché il timer è attivo.",
           tone: "system",
         },
       ],
@@ -690,7 +690,7 @@ export function TopicTimeApp() {
 
   async function claimStreak() {
     if (profile.lastStreakAt === todayKey()) {
-      setSync({ message: "Streak gia riscattata oggi. Torna domani per continuare la serie." });
+      setSync({ message: "Streak già riscattata oggi. Torna domani per continuare la serie." });
       return;
     }
 
@@ -705,7 +705,7 @@ export function TopicTimeApp() {
 
     if (reward <= 0) {
       setProfile((current) => ({ ...current, lastStreakAt: todayKey() }));
-      setSync({ message: "Streak gia riscattata oggi.", mode: result.mode });
+      setSync({ message: "Streak già riscattata oggi.", mode: result.mode });
       return;
     }
 
@@ -721,7 +721,7 @@ export function TopicTimeApp() {
 
   async function claimFreeGift() {
     if (giftClaimedToday) {
-      setSync({ message: "Regalo gia preso oggi. Domani trovi nuove Star gratis." });
+      setSync({ message: "Regalo già preso oggi. Domani trovi nuove Star gratis." });
       return;
     }
 
@@ -735,7 +735,7 @@ export function TopicTimeApp() {
 
     if (reward <= 0) {
       setProfile((current) => ({ ...current, lastGiftAt: todayKey() }));
-      setSync({ message: "Regalo gia preso oggi. Domani trovi nuove Star gratis.", mode: result.mode });
+      setSync({ message: "Regalo già preso oggi. Domani trovi nuove Star gratis.", mode: result.mode });
       return;
     }
 
@@ -858,7 +858,7 @@ export function TopicTimeApp() {
     event.preventDefault();
 
     if (!premiumActive) {
-      setSync({ message: "La creazione stanze e riservata agli utenti Premium." });
+      setSync({ message: "La creazione stanze è riservata agli utenti Premium." });
       return;
     }
 
@@ -933,7 +933,7 @@ export function TopicTimeApp() {
     setCommunityIdeas((current) =>
       current.map((idea) => (idea.id === ideaId ? { ...idea, votes: idea.votes + 1 } : idea)),
     );
-    setSync({ message: "Voto aggiunto. Le idee piu votate entrano nella roadmap." });
+    setSync({ message: "Voto aggiunto. Le idee più votate entrano nella roadmap." });
   }
 
   async function handleSubmitCommunityFeedback(event: FormEvent<HTMLFormElement>) {
@@ -983,7 +983,7 @@ export function TopicTimeApp() {
     setNoticeList((current) => [
       {
         id: `notice-community-${Date.now()}`,
-        message: "La tua proposta e entrata nello spazio community.",
+        message: "La tua proposta è entrata nello spazio community.",
         status: "new",
         title: `+${reward} Star feedback`,
       },
@@ -1035,7 +1035,7 @@ export function TopicTimeApp() {
     );
 
     if (alreadyOpen) {
-      setSync({ message: "C'e gia una segnalazione aperta per questa stanza. La stiamo tenendo d'occhio." });
+      setSync({ message: "C'è già una segnalazione aperta per questa stanza. La stiamo tenendo d'occhio." });
       return;
     }
 
@@ -1059,7 +1059,7 @@ export function TopicTimeApp() {
     setNoticeList((current) => [
       {
         id: `notice-report-${Date.now()}`,
-        message: "Grazie: il team controllera la stanza e le regole resteranno visibili agli utenti.",
+        message: "Grazie: il team controllerà la stanza e terrà visibili le regole agli utenti.",
         status: "new",
         title: "Segnalazione ricevuta",
       },
@@ -1451,7 +1451,7 @@ export function TopicTimeApp() {
                   ))
                 ) : (
                   <div className="empty-state">
-                    <strong>La conversazione non e ancora partita</strong>
+                    <strong>La conversazione non è ancora partita</strong>
                     <span>Entra e lancia il primo messaggio sul topic.</span>
                   </div>
                 )}
@@ -1635,7 +1635,7 @@ export function TopicTimeApp() {
               </div>
 
               <p className="community-lede">
-                Idee, feedback e aggiornamenti vivono nello stesso posto: proponi un miglioramento, vota le priorita e ricevi Star quando contribuisci.
+                Idee, feedback e aggiornamenti vivono nello stesso posto: proponi un miglioramento, vota le priorità e ricevi Star quando contribuisci.
               </p>
 
               <div className="impact-grid" aria-label="Flusso TopicTime">
@@ -1691,7 +1691,7 @@ export function TopicTimeApp() {
                     onChange={(event) =>
                       setFeedbackDraft((current) => ({ ...current, title: event.target.value }))
                     }
-                    placeholder="Es. stanza anti-solitudine del venerdi"
+                    placeholder="Es. stanza anti-solitudine del venerdì"
                   />
                 </label>
                 <label className="wide-field">
@@ -1701,7 +1701,7 @@ export function TopicTimeApp() {
                     onChange={(event) =>
                       setFeedbackDraft((current) => ({ ...current, body: event.target.value }))
                     }
-                    placeholder="Spiega cosa migliorerebbe, per chi e perche lo useresti"
+                    placeholder="Spiega cosa migliorerebbe, per chi e perché lo useresti"
                   />
                 </label>
                 <button className="primary-action wide-field" type="submit">
@@ -1754,7 +1754,7 @@ export function TopicTimeApp() {
 
               <div className="onboarding-summary">
                 <strong>{onboardingDoneCount}/{onboardingItems.length} completati</strong>
-                <span>{nextOnboardingItem ? nextOnboardingItem.title : "TopicTime e pronto per l'uso quotidiano."}</span>
+                <span>{nextOnboardingItem ? nextOnboardingItem.title : "TopicTime è pronto per l'uso quotidiano."}</span>
               </div>
 
               <div className="onboarding-meter" aria-label={`Percorso iniziale ${onboardingProgress} percento completato`}>

@@ -47,7 +47,7 @@ const navItems: { href: string; icon: LucideIcon; id: PageKey; label: string }[]
 
 const radarSignals = [
   ["Intento", "Calmo", "Suggerisce stanze lente quando l'utente salva messaggi riflessivi."],
-  ["Energia", "Media", "Evita room troppo affollate se il topic richiede profondita."],
+  ["Energia", "Media", "Evita room troppo affollate se il topic richiede profondità."],
   ["Rischio small talk", "Basso", "Spinge prompt specifici e limita ingressi senza contesto."],
 ];
 
@@ -58,7 +58,7 @@ const landingFlowSteps = [
     title: "Account personale",
   },
   {
-    body: "Il primo gesto dentro l'app e semplice: prendi il regalo gratuito e prova una stanza senza attrito.",
+    body: "Il primo gesto dentro l'app è semplice: prendi il regalo gratuito e prova una stanza senza attrito.",
     icon: Gift,
     title: "Star subito utili",
   },
@@ -98,39 +98,39 @@ const marketCards = [
 const ritualSteps = [
   ["01", "Scegli un topic", "Cinema, viaggi, cucina, libri, fitness o musica: si parte da qualcosa che avete in comune."],
   ["02", "Entri nella stanza", "Il timer toglie pressione: si parla adesso, senza trascinare tutto all'infinito."],
-  ["03", "Parli prima del profilo", "Prima ascolti cosa dice una persona. Il profilo arriva dopo, con piu senso."],
-  ["04", "Scegli se continuare", "A fine stanza decidi con chi restare in contatto, solo se la sintonia e nata davvero."],
+  ["03", "Parli prima del profilo", "Prima ascolti cosa dice una persona. Il profilo arriva dopo, con più senso."],
+  ["04", "Scegli se continuare", "A fine stanza decidi con chi restare in contatto, solo se la sintonia è nata davvero."],
 ];
 
 const manifestoRules = [
   "Gli interessi sono la porta d'ingresso, non un dettaglio nascosto nel profilo.",
-  "Il tempo limitato rende l'incontro piu leggero: sai quando inizia e quando finisce.",
+  "Il tempo limitato rende l'incontro più leggero: sai quando inizia e quando finisce.",
   "La nostalgia delle vecchie chatroom serve a ridare spazio alla conversazione.",
   "La community deve poter dire cosa funziona, cosa manca e cosa va migliorato.",
 ];
 
 const themeCards = [
   ["Digital Zen", "Chiaro, calmo, perfetto per leggere senza fatica."],
-  ["Sunset Nostalgia", "Colori caldi per stanze serali e conversazioni piu lente."],
+  ["Sunset Nostalgia", "Colori caldi per stanze serali e conversazioni più lente."],
   ["Pastel Dream", "Morbido, leggero, ideale per chi vuole un ambiente meno rumoroso."],
 ];
 
 const businessItems = [
   ["Star", "Si ottengono con regali, streak, feedback utili o pacchetti dedicati."],
   ["Free", "Permette di provare l'esperienza senza barriere, con limiti semplici."],
-  ["Premium", "Sblocca creazione stanze, temi speciali e piu possibilita di personalizzazione."],
+  ["Premium", "Sblocca creazione stanze, temi speciali e più possibilità di personalizzazione."],
   ["Community", "Feedback, segnalazioni e idee aiutano TopicTime a crescere nel modo giusto."],
 ];
 
 const growthItems = [
   ["1 anno", "50k utenti", "Prime community attive e conversioni Premium leggere."],
-  ["2 anni", "150k utenti", "Piu stanze, piu creator e maggiore ritorno quotidiano."],
+  ["2 anni", "150k utenti", "Più stanze, più creator e maggiore ritorno quotidiano."],
   ["3 anni", "400k utenti", "Una rete ampia, ma ancora basata su stanze piccole e conversazioni sane."],
 ];
 
 const audienceRoutes = [
   "TikTok per raccontare problemi reali",
-  "Instagram per identita e aggiornamenti",
+  "Instagram per identità e aggiornamenti",
   "Community interna per idee e supporto",
   "Utenti come primi ambasciatori del servizio",
 ];
@@ -142,7 +142,7 @@ const peopleCards = [
 ];
 
 const roadmapCards = [
-  ["01", "Racconto", "Una landing chiara per capire perche TopicTime esiste."],
+  ["01", "Racconto", "Una landing chiara per capire perché TopicTime esiste."],
   ["02", "Accesso", "Account, profilo, interessi e preferenze personali."],
   ["03", "Stanze", "Chatroom a tempo con topic, Star, utenti e messaggi."],
   ["04", "Fiducia", "Supporto, segnalazioni e roadmap aperta alla community."],
@@ -313,9 +313,9 @@ export function LandingPage() {
       <section className="product-section report-section">
         <div>
           <p className="eyeline">Annual Report 2025/26</p>
-          <h2>La Gen Z e iperconnessa, ma sempre piu isolata.</h2>
+          <h2>La Gen Z è iperconnessa, ma sempre più isolata.</h2>
           <p>
-            Dietro ai numeri c'e una sensazione concreta: essere sempre connessi non
+            Dietro ai numeri c'è una sensazione concreta: essere sempre connessi non
             significa sentirsi meno soli. TopicTime prova a riportare online uno spazio
             semplice, guidato da temi e conversazioni.
           </p>
@@ -359,7 +359,7 @@ export function LandingPage() {
           <div className="console-meter"><span /></div>
           <div className="hero-actions">
             <Link className="primary-action" href="/applicativo?auth=register">Entra</Link>
-            <Link className="secondary-action" href="/applicativo?auth=login">Ho gia un account</Link>
+            <Link className="secondary-action" href="/applicativo?auth=login">Ho già un account</Link>
           </div>
         </div>
         <div>
@@ -376,18 +376,18 @@ export function LandingPage() {
               <span><Icon size={18} /></span>
               <strong>{step.title}</strong>
               <p>{step.body}</p>
-              <small><Check size={14} /> pronto da provare</small>
+              <small><Check size={14} /> pronto per l'uso</small>
             </article>
           );
         })}
       </section>
       <section className="product-section experience-section" id="temi">
         <div>
-          <p className="eyeline">Identita</p>
+          <p className="eyeline">Identità</p>
           <h2>Retro, ma non rumoroso.</h2>
           <p>
             Il design riprende il calore delle vecchie chatroom, ma lo porta in un ambiente
-            piu calmo: meno rumore, piu respiro, piu attenzione alle persone.
+            più calmo: meno rumore, più respiro, più attenzione alle persone.
           </p>
         </div>
         <div className="theme-story-grid">
@@ -411,7 +411,7 @@ export function LandingPage() {
         <div>
           <p className="eyeline">Crescita</p>
           <h2>Una crescita che parte dalle persone che tornano.</h2>
-          <p>Prima una community attiva, poi piu stanze, creator, Premium e Star usate dentro esperienze reali.</p>
+          <p>Prima una community attiva, poi più stanze, creator, Premium e Star usate dentro esperienze reali.</p>
         </div>
         <div className="growth-rail">
           {growthItems.map(([period, value, text]) => (
@@ -439,8 +439,8 @@ export function LandingPage() {
       <section className="product-section roadmap-landing" id="roadmap">
         <div>
           <p className="eyeline">Roadmap</p>
-          <h2>Dall'idea raccontata alla stanza da provare.</h2>
-          <p>La landing spiega perche TopicTime esiste. L'app fa sentire cosa succede quando quel racconto diventa una conversazione vera.</p>
+          <h2>Dall'idea raccontata alla stanza da vivere.</h2>
+          <p>La home racconta perché TopicTime esiste. L'app fa sentire cosa succede quando quel racconto diventa una conversazione vera.</p>
         </div>
         <div className="roadmap-lane">
           {roadmapCards.map(([number, title, text]) => (
@@ -457,9 +457,9 @@ export function LandingPage() {
       <section className="product-section final-landing-cta" id="contatti">
         <Image src="/brand/logo-mark.png" alt="" width={82} height={82} />
         <div>
-          <p className="eyeline">Prossima fase</p>
+          <p className="eyeline">Entra ora</p>
           <h2>Dai numeri alla stanza.</h2>
-          <p>Apri TopicTime e guarda come l'idea comincia a diventare un'esperienza da provare.</p>
+          <p>Apri TopicTime e inizia da una stanza: poche persone, un tema chiaro, una conversazione vera.</p>
         </div>
         <div className="hero-actions">
           <Link className="primary-action" href="/applicativo?auth=register">Crea account</Link>
@@ -482,7 +482,7 @@ export function WalletPage() {
       actions={
         <>
           <Link className="primary-action" href="/applicativo?auth=register">Prendi il regalo gratis</Link>
-          <Link className="secondary-action" href="/applicativo?auth=login">Ho gia un account</Link>
+          <Link className="secondary-action" href="/applicativo?auth=login">Ho già un account</Link>
         </>
       }
     >
@@ -511,7 +511,7 @@ export function WalletPage() {
       </section>
       <section className="product-section plan-table" aria-label="Confronto piano free e premium">
         <div className="plan-table-head">
-          <span>Funzionalita</span>
+          <span>Funzionalità</span>
           <span>Free</span>
           <span>Premium</span>
         </div>
@@ -533,7 +533,7 @@ export function CommunityPage() {
       current="community"
       eyebrow="La tua voce conta"
       title="Una community che non parla solo: decide cosa costruire dopo."
-      text="Proponi idee, vota quelle degli altri e ricevi Star quando aiuti TopicTime a diventare piu utile e sicuro."
+      text="Proponi idee, vota quelle degli altri e ricevi Star quando aiuti TopicTime a diventare più utile e sicuro."
       actions={
         <>
           <Link className="primary-action" href="/applicativo?auth=register">Entra nella community</Link>
@@ -573,7 +573,7 @@ export function ProfilePage() {
     >
       <section className="product-section profile-layout" id="matches">
         <aside className="profile-passport"><span>{initialProfile.avatarInitials}</span><strong>{initialProfile.displayName}</strong><small>@{initialProfile.username}</small><p>{initialProfile.bio}</p><div>{initialProfile.interests.map((interest) => <em key={interest}>{interest}</em>)}</div></aside>
-        <div className="match-list">{companionMatches.map((match) => <article key={match.id}><UserPlus size={20} /><span>{match.topic}</span><strong>{match.name}</strong><p>{match.signal}</p><small>{match.score}% compatibilita</small></article>)}</div>
+        <div className="match-list">{companionMatches.map((match) => <article key={match.id}><UserPlus size={20} /><span>{match.topic}</span><strong>{match.name}</strong><p>{match.signal}</p><small>{match.score}% compatibilità</small></article>)}</div>
         <div className="safety-panel"><ShieldAlert size={24} /><strong>Spazio sicuro</strong><p>Puoi silenziare una stanza, segnalare comportamenti scorretti e tenere sotto controllo le notifiche senza interrompere la conversazione.</p><ul>{notifications.slice(0, 3).map((notification) => <li key={notification.id}>{notification.title}</li>)}</ul></div>
       </section>
     </PageShell>
@@ -585,8 +585,8 @@ export function RadarPage() {
     <PageShell
       current="radar"
       eyebrow="Scelta intelligente"
-      title="Radar capisce quando una stanza e pronta per te."
-      text="Invece di farti scorrere all'infinito, TopicTime ti suggerisce stanze con il ritmo, il tema e le persone piu adatti al momento."
+      title="Radar capisce quando una stanza è pronta per te."
+      text="Invece di farti scorrere all'infinito, TopicTime ti suggerisce stanze con il ritmo, il tema e le persone più adatti al momento."
       actions={
         <>
           <Link className="primary-action" href="/applicativo?auth=register">Trova una stanza</Link>
@@ -596,7 +596,7 @@ export function RadarPage() {
     >
       <section className="product-section radar-stage">
         <div className="radar-visual" aria-label="Radar conversazionale"><div className="radar-ring ring-one" /><div className="radar-ring ring-two" /><div className="radar-ring ring-three" /><span className="radar-dot dot-one">Cinema</span><span className="radar-dot dot-two">Libri</span><span className="radar-dot dot-three">Viaggi</span><div className="radar-center"><Wand2 size={28} /><strong>92%</strong><small>match conversazione</small></div></div>
-        <div className="radar-copy"><p className="eyeline">Non e un feed</p><h2>Il Radar propone la prossima stanza in base al momento, non alla dipendenza.</h2><p>Ti mostra perche una stanza puo funzionare per te e ti offre un prompt di ingresso gia pronto.</p></div>
+        <div className="radar-copy"><p className="eyeline">Non è un feed</p><h2>Il Radar propone la prossima stanza in base al momento, non alla dipendenza.</h2><p>Ti mostra perché una stanza può funzionare per te e ti offre un prompt di ingresso già pronto.</p></div>
       </section>
       <section className="product-section signal-grid">{radarSignals.map(([label, metric, text]) => <article key={label}><span>{label}</span><strong>{metric}</strong><p>{text}</p></article>)}</section>
       <section className="product-section route-panel"><div><Clock size={22} /><strong>Percorso consigliato</strong><p>Tre stanze suggerite, massimo un'ora, nessun feed infinito.</p></div>{rooms.slice(0, 3).map((room, index) => <article key={room.id}><span>{index + 1}</span><strong>{room.title}</strong><small>{room.compatibility}% compatibile - {room.mood}</small></article>)}</section>

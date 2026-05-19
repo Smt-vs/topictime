@@ -220,7 +220,7 @@ export async function loadTopicTimeSnapshot(): Promise<DbActionResult<TopicTimeS
 
   if (!client) {
     return {
-      message: "L'accesso non e disponibile in questo momento. Riprova tra poco.",
+      message: "L'accesso non è disponibile in questo momento. Riprova tra poco.",
       mode: "remote",
       ok: false,
     };
@@ -469,7 +469,7 @@ export function getAuthRedirectError() {
     return null;
   }
 
-  return description ?? error ?? "La verifica email non e stata completata.";
+  return description ?? error ?? "La verifica email non è stata completata.";
 }
 
 export function getAuthRedirectType() {
@@ -486,7 +486,7 @@ export function getAuthRedirectType() {
 function unavailableAuthResult(): DbActionResult {
   return {
     code: "configuration",
-    message: "L'accesso non e disponibile in questo momento. Riprova tra poco.",
+    message: "L'accesso non è disponibile in questo momento. Riprova tra poco.",
     mode: "remote",
     ok: false,
   };
@@ -514,7 +514,7 @@ function authErrorResult(message: string): DbActionResult {
     return {
       code: "email_delivery_blocked",
       message:
-        "Non riusciamo a inviare email a questo indirizzo in questa fase. Se sei in beta, usa la mail con cui sei stato invitato.",
+        "Non riusciamo a inviare email a questo indirizzo in questo momento. Controlla la mail inserita o scrivi al supporto.",
       mode: "remote",
       ok: false,
     };
@@ -524,7 +524,7 @@ function authErrorResult(message: string): DbActionResult {
     return {
       code: "email_delivery_blocked",
       message:
-        "L'account e stato creato, ma la mail non e partita. Riprova tra poco o chiedi supporto.",
+        "L'account è stato creato, ma la mail non è partita. Riprova tra poco o chiedi supporto.",
       mode: "remote",
       ok: false,
     };
@@ -536,7 +536,7 @@ function authErrorResult(message: string): DbActionResult {
   ) {
     return {
       code: "auth_disabled",
-      message: "L'accesso con email e password non e disponibile in questo momento. Riprova piu tardi.",
+      message: "L'accesso con email e password non è disponibile in questo momento. Riprova più tardi.",
       mode: "remote",
       ok: false,
     };
@@ -545,7 +545,7 @@ function authErrorResult(message: string): DbActionResult {
   if (errorMessage.includes("signup") && (errorMessage.includes("disabled") || errorMessage.includes("not allowed"))) {
     return {
       code: "auth_disabled",
-      message: "La registrazione non e disponibile in questo momento. Riprova piu tardi.",
+      message: "La registrazione non è disponibile in questo momento. Riprova più tardi.",
       mode: "remote",
       ok: false,
     };
@@ -554,7 +554,7 @@ function authErrorResult(message: string): DbActionResult {
   if (errorMessage.includes("already registered") || errorMessage.includes("already exists")) {
     return {
       code: "already_registered",
-      message: "Questa email sembra gia registrata. Vai su Accedi e usa la password che hai scelto.",
+      message: "Questa email sembra già registrata. Vai su Accedi e usa la password che hai scelto.",
       mode: "remote",
       ok: false,
     };
@@ -572,7 +572,7 @@ function authErrorResult(message: string): DbActionResult {
   if (errorMessage.includes("email") && errorMessage.includes("not confirmed")) {
     return {
       code: "email_not_confirmed",
-      message: "La tua email non e ancora verificata. Apri la mail di TopicTime, conferma l'account e poi torna qui ad accedere.",
+      message: "La tua email non è ancora verificata. Apri la mail di TopicTime, conferma l'account e poi torna qui ad accedere.",
       mode: "remote",
       ok: false,
     };
@@ -590,7 +590,7 @@ function authErrorResult(message: string): DbActionResult {
   if (errorMessage.includes("password") && (errorMessage.includes("weak") || errorMessage.includes("least"))) {
     return {
       code: "weak_password",
-      message: "Scegli una password piu solida: almeno 8 caratteri, meglio con lettere e numeri.",
+      message: "Scegli una password più solida: almeno 8 caratteri, meglio con lettere e numeri.",
       mode: "remote",
       ok: false,
     };
@@ -599,7 +599,7 @@ function authErrorResult(message: string): DbActionResult {
   if (errorMessage.includes("redirect")) {
     return {
       code: "redirect",
-      message: "Il link di conferma non e valido. Richiedi una nuova email e usa l'ultimo link ricevuto.",
+      message: "Il link di conferma non è valido. Richiedi una nuova email e usa l'ultimo link ricevuto.",
       mode: "remote",
       ok: false,
     };
@@ -665,7 +665,7 @@ function dbErrorResult<TData = never>(error: unknown, fallbackMessage: string): 
 
   if (errorMessage.includes("premium_required")) {
     return {
-      message: "Questa azione e riservata agli utenti Premium.",
+      message: "Questa azione è riservata agli utenti Premium.",
       mode: "remote",
       ok: false,
     };
@@ -681,7 +681,7 @@ function dbErrorResult<TData = never>(error: unknown, fallbackMessage: string): 
 
   if (errorMessage.includes("room_full")) {
     return {
-      message: "La stanza e piena. Scegline un'altra o genera una nuova lobby.",
+      message: "La stanza è piena. Scegline un'altra o genera una nuova lobby.",
       mode: "remote",
       ok: false,
     };
@@ -689,7 +689,7 @@ function dbErrorResult<TData = never>(error: unknown, fallbackMessage: string): 
 
   if (errorMessage.includes("room_closed")) {
     return {
-      message: "Questa stanza si e chiusa. Troviamo una nuova conversazione.",
+      message: "Questa stanza si è chiusa. Troviamo una nuova conversazione.",
       mode: "remote",
       ok: false,
     };
@@ -697,7 +697,7 @@ function dbErrorResult<TData = never>(error: unknown, fallbackMessage: string): 
 
   if (errorMessage.includes("room_not_found")) {
     return {
-      message: "Questa stanza non e piu disponibile.",
+      message: "Questa stanza non è più disponibile.",
       mode: "remote",
       ok: false,
     };
@@ -729,7 +729,7 @@ function dbErrorResult<TData = never>(error: unknown, fallbackMessage: string): 
 
   if (errorMessage.includes("duplicate") && errorMessage.includes("profiles_username")) {
     return {
-      message: "Questo username e gia in uso. Provane uno diverso.",
+      message: "Questo username è già in uso. Provane uno diverso.",
       mode: "remote",
       ok: false,
     };
@@ -737,7 +737,7 @@ function dbErrorResult<TData = never>(error: unknown, fallbackMessage: string): 
 
   if (errorMessage.includes("check constraint") && errorMessage.includes("messages")) {
     return {
-      message: "Il messaggio e troppo lungo. Accorcialo e riprova.",
+      message: "Il messaggio è troppo lungo. Accorcialo e riprova.",
       mode: "remote",
       ok: false,
     };
@@ -800,7 +800,7 @@ export async function signUpWithPassword(email: string, password: string, displa
       return {
         code: "already_registered",
         message:
-          "Questa email sembra gia registrata. Prova ad accedere con la password che hai scelto.",
+          "Questa email sembra già registrata. Prova ad accedere con la password che hai scelto.",
         mode: "remote",
         ok: false,
       };
