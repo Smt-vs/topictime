@@ -12,6 +12,9 @@
   --coral-deep: #9d352b;
   --violet: #9271d9;
   --green: #98d996;
+  --accent: var(--coral);
+  --accent-deep: var(--coral-deep);
+  --theme-wash: rgba(79, 166, 177, 0.1);
   --surface: rgba(255, 250, 240, 0.86);
   --surface-strong: rgba(255, 250, 240, 0.96);
   --font-body: "Avenir Next", "Gill Sans", Verdana, sans-serif;
@@ -1065,6 +1068,22 @@ textarea::placeholder {
   border-radius: var(--radius);
   cursor: pointer;
   font-weight: 900;
+  line-height: 1.15;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.icon-button svg,
+.primary-action svg,
+.secondary-action svg,
+.mini-action svg,
+.nav-cta svg,
+.wallet-actions button svg,
+.coin-pack-list button svg,
+.auth-mode-switch button svg,
+.message-actions button svg,
+.quick-replies button svg {
+  flex: 0 0 auto;
 }
 
 .icon-button {
@@ -1076,9 +1095,13 @@ textarea::placeholder {
 
 .icon-button.solid,
 .primary-action {
-  border: 1px solid var(--accent);
-  background: var(--accent);
+  border: 1px solid var(--accent-deep);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-deep) 92%, #000 8%), var(--accent-deep)),
+    var(--accent-deep);
   color: var(--paper);
+  box-shadow: 0 12px 24px rgba(23, 56, 63, 0.16);
+  text-shadow: 0 1px 1px rgba(23, 56, 63, 0.22);
 }
 
 button:disabled,
@@ -1110,6 +1133,20 @@ textarea:disabled {
   cursor: pointer;
   color: var(--ink);
   font-weight: 900;
+  line-height: 1.15;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.primary-action:hover,
+.primary-action:focus-visible,
+.icon-button.solid:hover,
+.icon-button.solid:focus-visible {
+  border-color: color-mix(in srgb, var(--accent-deep) 84%, #000 16%);
+  background:
+    linear-gradient(135deg, var(--accent-deep), color-mix(in srgb, var(--accent) 58%, var(--accent-deep))),
+    var(--accent-deep);
+  color: var(--paper);
 }
 
 .secondary-action:hover,
@@ -2597,13 +2634,21 @@ textarea:disabled {
 }
 
 .metric-stack article {
-  grid-template-columns: 120px minmax(0, 1fr);
+  grid-template-columns: max-content minmax(0, 1fr);
   align-items: center;
+  column-gap: clamp(18px, 3vw, 30px);
 }
 
 .metric-stack strong {
   color: var(--coral-deep);
-  font-size: clamp(34px, 6vw, 58px);
+  min-width: 0;
+  font-size: clamp(34px, 5vw, 54px);
+  line-height: 1.08;
+  white-space: nowrap;
+}
+
+.metric-stack p {
+  min-width: 0;
 }
 
 .market-card-grid {
